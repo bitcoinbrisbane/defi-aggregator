@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	pairHandler := pairs.NewPairHandler()
+	pairHandler := pairs.NewPairHandler("redis://localhost:6379")
 
 	// Example usage
 	tokenA := pairs.ERC20Token{Address: "0x123...", Symbol: "TKNA", Decimals: 18}

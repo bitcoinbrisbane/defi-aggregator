@@ -1,5 +1,13 @@
 package pairs
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/go-redis/redis/v8"
+)
+
 // ERC20Token represents a single ERC20 token
 type ERC20Token struct {
 	Address  string
@@ -22,26 +30,58 @@ type ProtocolPair struct {
 
 // PairHandler manages operations related to token pairs
 type PairHandler struct {
+	redisClient   *redis.Client
 	Pairs         map[string]TokenPair
 	ProtocolPairs map[string][]ProtocolPair
 }
 
+func NewERC20Token(address, symbol string, decimals int) ERC20Token {
+	return ERC20Token{Address: address, Symbol: symbol, Decimals: decimals}
+}
+
+func NewTokenPair(token0, token1 ERC20Token) TokenPair {
+	return TokenPair{Token0: token0, Token1: token1}
+}
+
+func NewProtocolPair(protocolName, contractAddress string, pair TokenPair) ProtocolPair {
+	return ProtocolPair{ProtocolName: protocolName, ContractAddress: contractAddress, Pair: pair}
+}
+
 // NewPairHandler creates a new PairHandler instance
-func NewPairHandler() *PairHandler {
+func NewPairHandler(redisUrl string) *PairHandler {
+	client := redis.NewClient(&redis.Options{
+		Addr: redisUrl,
+		DB:   0,
+	})
+
 	return &PairHandler{
+		redisClient:   client,
 		Pairs:         make(map[string]TokenPair),
 		ProtocolPairs: make(map[string][]ProtocolPair),
 	}
 }
 
 // AddProtocolPair adds a new protocol pair to the handler
-func (ph *PairHandler) AddProtocolPair(protocolName, contractAddress string, pair TokenPair) {
+func (ph *PairHandler) AddProtocolPair(ctx context.Context, protocolName, contractAddress string, pair TokenPair) {
 	protocolPair := ProtocolPair{
 		ProtocolName:    protocolName,
 		ContractAddress: contractAddress,
 		Pair:            pair,
 	}
+
 	pairKey := getPairKey(pair.Token0.Address, pair.Token1.Address)
+	data, err := json.Marshal(protocolPair)
+
+	if err != nil {
+		fmt.Printf("failed to marshal protocol pair: %v\n", err)
+		return
+	}
+
+	err = ph.redisClient.SAdd(ctx, pairKey, data).Err()
+	if err != nil {
+		fmt.Printf("failed to add protocol pair to Redis: %v", err)
+		return
+	}
 	ph.ProtocolPairs[pairKey] = append(ph.ProtocolPairs[pairKey], protocolPair)
 }
 
