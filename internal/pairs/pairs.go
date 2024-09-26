@@ -52,6 +52,7 @@ func NewPairHandler(redisUrl string) *PairHandler {
 	client := redis.NewClient(&redis.Options{
 		Addr: redisUrl,
 		DB:   0,
+		Password: "Test1234!",
 	})
 
 	return &PairHandler{

@@ -1,22 +1,27 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 )
 
 func main() {
-	pairHandler := pairs.NewPairHandler("redis://localhost:6379")
+	pairHandler := pairs.NewPairHandler("localhost:6379")
+
+	ctx := context.Background()
+
+	// TODO: Call the ERC20 token for the metadata
 
 	// Example usage
-	tokenA := pairs.ERC20Token{Address: "0x123...", Symbol: "TKNA", Decimals: 18}
-	tokenB := pairs.ERC20Token{Address: "0x456...", Symbol: "TKNB", Decimals: 18}
+	tokenA := pairs.ERC20Token{Address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", Symbol: "USDC", Decimals: 6}
+	tokenB := pairs.ERC20Token{Address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", Symbol: "WBTC", Decimals: 18}
 
-	pairHandler.AddPair(tokenA, tokenB)
+	// pairHandler.AddPair(tokenA, tokenB)
 
 	// Adding protocol pairs
-	pairHandler.AddProtocolPair("Uniswap", "0x00", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	pairHandler.AddProtocolPair("SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+	pairHandler.AddProtocolPair(ctx, "Uniswap", "0x00", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+	pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
 
 	// Retrieving protocol pairs
 	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address, tokenB.Address)
