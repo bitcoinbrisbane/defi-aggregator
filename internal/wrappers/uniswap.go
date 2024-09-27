@@ -1,29 +1,30 @@
-package wrappers
+package uniswap
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
-	"net/http"
 
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	// "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
+	// "github.com/ethereum/go-ethereum/ethclient"
+	"github.com/lmittmann/w3"
+	"github.com/lmittmann/w3/module/eth"
 )
 
 // IERC20ABI is the ABI for the ERC20 interface
 const IERC20ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-const IUNISWAPV3QUOTABI = `[{"constant":true,"inputs":[{"name":"tokenIn","type":"address"},{"name":"tokenOut","type":"address"},{"name":"amountIn","type":"uint256"}],"name":"quote","outputs":[{"name":"amountOut","type":"uint256"}],"type":"function"}]`
+const IUNISWAPV3QUOTEABI = `[{"constant":true,"inputs":[{"name":"tokenIn","type":"address"},{"name":"tokenOut","type":"address"},{"name":"amountIn","type":"uint256"}],"name":"quote","outputs":[{"name":"amountOut","type":"uint256"}],"type":"function"}]`
+const UNISWAPV3FACTORYABI = `[{"constant":true,"inputs":[],"name":"getPool","outputs":[{"name":"pool","type":"address"}],"type":"function"}]`
 
 // MockQuoter represents a mock contract for getting quotes
 type MockQuoter struct{}
 
 // IERC20 is a simplified interface for ERC20 tokens
 type IERC20 struct {
-	Name  func(opts *bind.CallOpts) (string, error)
+	Name func(opts *bind.CallOpts) (string, error)
 }
 
 // GetQuote is a mock method to simulate getting a quote from a smart contract
@@ -38,7 +39,6 @@ func (mq *MockQuoter) GetQuote(tokenIn, tokenOut common.Address, amountIn *big.I
 	// }
 
 	// pairAddress := common.HexToAddress("0x6B175474E89094C44Da98b954EedeAC495271d0F")
-
 
 	// // Create a new instance of the ERC20 contract
 	// token, err := NewIERC20(tokenAddress, client)
@@ -77,68 +77,102 @@ type PairHandlerWrapper struct {
 	pairs.PairHandler
 }
 
-// QuoteHandler handles HTTP requests for quotes
-func (ph *PairHandlerWrapper) QuoteHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func GetPoolAddress(tokenIn, tokenOut common.Address) common.Address {
 
-	// Parse query parameters
-	query := r.URL.Query()
-	tokenInAddress := query.Get("tokenIn")
-	tokenOutAddress := query.Get("tokenOut")
-	protocolName := query.Get("protocol")
-	amountInStr := query.Get("amountIn")
+	client := w3.MustDial("http://localhost:8545")
+	defer client.Close()
 
-	// Validate input
-	if tokenInAddress == "" || tokenOutAddress == "" || protocolName == "" || amountInStr == "" {
-		http.Error(w, "Missing required parameters", http.StatusBadRequest)
-		return
-	}
+	factorAddress := "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+	fmt.Println(factorAddress)
 
-	// Find the protocol pair
-	protocolPairs := ph.FindProtocolsForPair(tokenInAddress, tokenOutAddress)
-	var targetPair pairs.ProtocolPair
-	for _, pp := range protocolPairs {
-		if pp.ProtocolName == protocolName {
-			targetPair = pp
-			break
-		}
-	}
+	_factoryAddress := common.HexToAddress(factorAddress)
 
-	if targetPair.ContractAddress == "" {
-		http.Error(w, "Protocol not found for the given token pair", http.StatusNotFound)
-		return
-	}
+	// funcBalanceOf := w3.MustNewFunc("balanceOf(address)", "uint256")
 
-	// Parse amountIn
-	amountIn, ok := new(big.Int).SetString(amountInStr, 10)
-	if !ok {
-		http.Error(w, "Invalid amountIn value", http.StatusBadRequest)
-		return
-	}
+	funcGetPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
+	params, err := funcGetPool.EncodeArgs(tokenIn, tokenOut, 3000)
 
-	// Create a mock quoter (in a real scenario, this would connect to the blockchain)
-	quoter := &MockQuoter{}
-
-	// Get the quote
-	quoteAmount, err := quoter.GetQuote(common.HexToAddress(tokenInAddress), common.HexToAddress(tokenOutAddress), amountIn)
 	if err != nil {
-		http.Error(w, "Error getting quote: "+err.Error(), http.StatusInternalServerError)
-		return
+		log.Fatalf("Failed to encode arguments: %v", err)
 	}
 
-	// Prepare the response
-	response := map[string]string{
-		"tokenIn":    tokenInAddress,
-		"tokenOut":   tokenOutAddress,
-		"protocol":   protocolName,
-		"amountIn":   amountIn.String(),
-		"quoteAmount": quoteAmount.String(),
+	var poolAddress string
+
+	if err := client.Call(
+		eth.CallFunc(_factoryAddress, funcGetPool, params).Returns(&poolAddress),
+	); err != nil {
+		fmt.Printf("Request failed: %v\n", err)
 	}
 
-	// Send the response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	return common.HexToAddress(poolAddress)
 }
+
+func (ph *PairHandlerWrapper) QuoteHandler() {
+
+}
+
+// // QuoteHandler handles HTTP requests for quotes
+// func (ph *PairHandlerWrapper) QuoteHandler(w http.ResponseWriter, r *http.Request) {
+// 	if r.Method != http.MethodGet {
+// 		http.Error(w, "Only GET method is allowed", http.StatusMethodNotAllowed)
+// 		return
+// 	}
+
+// 	// Parse query parameters
+// 	query := r.URL.Query()
+// 	tokenInAddress := query.Get("tokenIn")
+// 	tokenOutAddress := query.Get("tokenOut")
+// 	protocolName := query.Get("protocol")
+// 	amountInStr := query.Get("amountIn")
+
+// 	// Validate input
+// 	if tokenInAddress == "" || tokenOutAddress == "" || protocolName == "" || amountInStr == "" {
+// 		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Find the protocol pair
+// 	protocolPairs := ph.FindProtocolsForPair(tokenInAddress, tokenOutAddress)
+// 	var targetPair pairs.ProtocolPair
+// 	for _, pp := range protocolPairs {
+// 		if pp.ProtocolName == protocolName {
+// 			targetPair = pp
+// 			break
+// 		}
+// 	}
+
+// 	if targetPair.ContractAddress == "" {
+// 		http.Error(w, "Protocol not found for the given token pair", http.StatusNotFound)
+// 		return
+// 	}
+
+// 	// Parse amountIn
+// 	amountIn, ok := new(big.Int).SetString(amountInStr, 10)
+// 	if !ok {
+// 		http.Error(w, "Invalid amountIn value", http.StatusBadRequest)
+// 		return
+// 	}
+
+// 	// Create a mock quoter (in a real scenario, this would connect to the blockchain)
+// 	quoter := &MockQuoter{}
+
+// 	// Get the quote
+// 	quoteAmount, err := quoter.GetQuote(common.HexToAddress(tokenInAddress), common.HexToAddress(tokenOutAddress), amountIn)
+// 	if err != nil {
+// 		http.Error(w, "Error getting quote: "+err.Error(), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Prepare the response
+// 	response := map[string]string{
+// 		"tokenIn":    tokenInAddress,
+// 		"tokenOut":   tokenOutAddress,
+// 		"protocol":   protocolName,
+// 		"amountIn":   amountIn.String(),
+// 		"quoteAmount": quoteAmount.String(),
+// 	}
+
+// 	// Send the response
+// 	w.Header().Set("Content-Type", "application/json")
+// 	json.NewEncoder(w).Encode(response)
+// }

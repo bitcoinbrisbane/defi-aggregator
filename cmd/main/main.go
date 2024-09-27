@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/wrappers"
 )
 
 func main() {
@@ -36,4 +37,6 @@ func main() {
 	for _, pp := range protocolsForAB {
 		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
 	}
+
+	uniswap.GetPoolAddress(tokenA, tokenB)
 }
