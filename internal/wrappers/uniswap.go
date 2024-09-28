@@ -79,7 +79,7 @@ type PairHandlerWrapper struct {
 
 func GetPoolAddress(tokenIn, tokenOut common.Address) common.Address {
 
-	client := w3.MustDial("http://localhost:8545")
+	client := w3.MustDial("https://eth-mainnet.g.alchemy.com/v2/-Lh1_OMuwKGBKgoU4nk07nz98TYeUZxj")
 	defer client.Close()
 
 	factorAddress := "0x1F98431c8aD98523631AE4a59f267346ea31F984"
@@ -89,8 +89,11 @@ func GetPoolAddress(tokenIn, tokenOut common.Address) common.Address {
 
 	// funcBalanceOf := w3.MustNewFunc("balanceOf(address)", "uint256")
 
+	fee := &big.Int{}
+    fee.SetInt64(3000)
+
 	funcGetPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
-	params, err := funcGetPool.EncodeArgs(tokenIn, tokenOut, 3000)
+	params, err := funcGetPool.EncodeArgs(tokenIn, tokenOut, fee)
 
 	if err != nil {
 		log.Fatalf("Failed to encode arguments: %v", err)

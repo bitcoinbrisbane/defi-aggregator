@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/wrappers"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func main() {
@@ -38,5 +39,8 @@ func main() {
 		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
 	}
 
-	uniswap.GetPoolAddress(tokenA, tokenB)
+	token0 := common.HexToAddress(tokenA.Address)
+	token1 := common.HexToAddress(tokenB.Address)
+
+	uniswap.GetPoolAddress(token0, token1)
 }
