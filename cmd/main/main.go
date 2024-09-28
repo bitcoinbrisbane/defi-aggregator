@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/wrappers"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients"
 	"github.com/ethereum/go-ethereum/common"
+	// "github.com/ethereum/go-ethereum/node"
 )
 
 func main() {
-	pairHandler := pairs.NewPairHandler("localhost:6379")
+	redisUrl := "localhost:6379"
+	pairHandler := pairs.NewPairHandler(redisUrl)
 
 	ctx := context.Background()
 
@@ -42,5 +45,7 @@ func main() {
 	token0 := common.HexToAddress(tokenA.Address)
 	token1 := common.HexToAddress(tokenB.Address)
 
-	uniswap.GetPoolAddress(token0, token1)
+	nodeUrl := "https://eth-mainnet.g.alchemy.com/v2/"
+
+	uniswap.GetPrice(token0, token1, nodeUrl)
 }
