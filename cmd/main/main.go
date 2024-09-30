@@ -3,15 +3,25 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 
+	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients"
 	"github.com/ethereum/go-ethereum/common"
+
 	// "github.com/ethereum/go-ethereum/node"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	redisUrl := "localhost:6379"
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	redisUrl := os.Getenv("REDIS_URL")
 	pairHandler := pairs.NewPairHandler(redisUrl)
 
 	ctx := context.Background()
@@ -45,7 +55,12 @@ func main() {
 	token0 := common.HexToAddress(tokenA.Address)
 	token1 := common.HexToAddress(tokenB.Address)
 
-	nodeUrl := "https://eth-mainnet.g.alchemy.com/v2/"
+	nodeUrl := os.Getenv("NODE_URL")
 
-	uniswap.GetPrice(token0, token1, nodeUrl)
+	// do these in parallel
+
+	// uniswap.Quote(token0, token1, nodeUrl)
+	// curvefi.Quote(token0, token1, nodeUrl)
+	// curvefi.GetPoolAddress(token0, token1, nodeUrl)
+	curvefi.GetPrice(token0, token1, nodeUrl)
 }

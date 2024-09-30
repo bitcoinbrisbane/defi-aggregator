@@ -1,23 +1,17 @@
-package uniswap
+package curvefi
 
 import (
 	"flag"
 	"fmt"
-	"math/big"
-	"log"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lmittmann/w3"
 	"github.com/lmittmann/w3/module/eth"
 	"github.com/lmittmann/w3/w3types"
+	"math/big"
 )
 
-// // IERC20ABI is the ABI for the ERC20 interface
-// const IERC20ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"type":"function"}]`
-// const IUNISWAPV3QUOTEABI = `[{"constant":true,"inputs":[{"name":"tokenIn","type":"address"},{"name":"tokenOut","type":"address"},{"name":"amountIn","type":"uint256"}],"name":"quote","outputs":[{"name":"amountOut","type":"uint256"}],"type":"function"}]`
-// const UNISWAPV3FACTORYABI = `[{"constant":true,"inputs":[],"name":"getPool","outputs":[{"name":"pool","type":"address"}],"type":"function"}]`
-
-
+// ERC20Token represents an ERC20 token
 var (
 	addrUniV3Quoter = w3.A("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6")
 
@@ -37,20 +31,18 @@ type PairHandlerWrapper struct {
 	pairs.PairHandler
 }
 
-func GetPrice(tokenA, tokenB common.Address, rawUrl string) {
+func Quote(tokenA, tokenB common.Address, rawUrl string) {
 
 	// parse flags
 	flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
-	// flag.TextVar(&addrTokenIn, "tokenIn", w3.A("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"), "Token in")
-	// flag.TextVar(&addrTokenOut, "tokenOut", w3.A("0x6B175474E89094C44Da98b954EedeAC495271d0F"), "Token out")
-
 	flag.TextVar(&addrTokenIn, "tokenIn", tokenA, "Token in")
 	flag.TextVar(&addrTokenOut, "tokenOut", tokenB, "Token out")
 
 	flag.Usage = func() {
-		fmt.Println("uniswap_quote prints the UniSwap V3 exchange rate to swap amountIn of tokenIn for tokenOut.")
+		fmt.Println("curve.fi exchange rate to swap amountIn of tokenIn for tokenOut.")
 		flag.PrintDefaults()
 	}
+
 	flag.Parse()
 
 	// connect to RPC endpoint
@@ -66,6 +58,7 @@ func GetPrice(tokenA, tokenB common.Address, rawUrl string) {
 		tokenOutSymbol   string
 		tokenOutDecimals uint8
 	)
+
 	if err := client.Call(
 		eth.CallFunc(addrTokenIn, funcName).Returns(&tokenInName),
 		eth.CallFunc(addrTokenIn, funcSymbol).Returns(&tokenInSymbol),
@@ -84,11 +77,14 @@ func GetPrice(tokenA, tokenB common.Address, rawUrl string) {
 		calls      = make([]w3types.RPCCaller, len(fees))
 		amountsOut = make([]big.Int, len(fees))
 	)
+
 	for i, fee := range fees {
 		calls[i] = eth.CallFunc(addrUniV3Quoter, funcQuoteExactInputSingle, addrTokenIn, addrTokenOut, fee, &amountIn, w3.Big0).Returns(&amountsOut[i])
 	}
+
 	err := client.Call(calls...)
 	callErrs, ok := err.(w3.CallErrors)
+
 	if err != nil && !ok {
 		fmt.Printf("Failed to fetch quotes: %v\n", err)
 		return
@@ -108,38 +104,46 @@ func GetPrice(tokenA, tokenB common.Address, rawUrl string) {
 	}
 }
 
-func GetPoolAddress(tokenIn, tokenOut common.Address) common.Address {
-
-	client := w3.MustDial("https://eth-mainnet.g.alchemy.com/v2/-Lh1_OMuwKGBKgoU4nk07nz98TYeUZxj")
+func GetPoolAddress(tokenIn, tokenOut common.Address, nodeUrl string) common.Address {
+	client := w3.MustDial(nodeUrl)
 	defer client.Close()
 
-	factorAddress := "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+	// https://etherscan.io/token/0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963#readContract
+	factorAddress := "0x0c0e5f2fF0ff18a3be9b835635039256dC4B4963"
 	fmt.Println(factorAddress)
 
 	_factoryAddress := common.HexToAddress(factorAddress)
 
-	// funcBalanceOf := w3.MustNewFunc("balanceOf(address)", "uint256")
-
-	fee := &big.Int{}
-	fee.SetInt64(3000)
-	// fee := uint24(3000) // Fee tier of 0.3%
-
-	// getPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
-	getPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
-	input, err := getPool.EncodeArgs(tokenIn,tokenOut,fee)
-	fmt.Printf("getPool input: 0x%x\n", input)
-
-	if err != nil {
-		log.Fatalf("Failed to encode arguments: %v", err)
-	}
+	getPool := w3.MustNewFunc("find_pool_for_coins(address,address)", "address")
 
 	var poolAddress string
 
 	if err := client.Call(
-		eth.CallFunc(_factoryAddress, getPool, input).Returns(&poolAddress),
+		eth.CallFunc(_factoryAddress, getPool, tokenIn, tokenOut).Returns(&poolAddress),
 	); err != nil {
 		fmt.Printf("Request failed: %v\n", err)
 	}
 
 	return common.HexToAddress(poolAddress)
+}
+
+func GetPrice(tokenIn, tokenOut common.Address, nodeUrl string) big.Int {
+	client := w3.MustDial(nodeUrl)
+	defer client.Close()
+
+	// poolAddress := GetPoolAddress(tokenIn, tokenOut, nodeUrl)
+	poolAddress := common.HexToAddress("0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B")
+	getPrice := w3.MustNewFunc("get_virtual_price()", "uint256")
+
+	var price big.Int
+
+	if err := client.Call(
+		eth.CallFunc(poolAddress, getPrice).Returns(&price),
+	); err != nil {
+		fmt.Printf("Request failed: %v\n", err)
+	}
+
+	fmt.Printf("Price: %s\n", w3.FromWei(&price, 18))
+
+	return price
 }
