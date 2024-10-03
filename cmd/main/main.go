@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/pancake"
+
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
+	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -58,9 +61,11 @@ func main() {
 	nodeUrl := os.Getenv("NODE_URL")
 
 	// do these in parallel
+	fee := big.NewInt(5000)
+	pancake.Quote(token0, token1, fee, nodeUrl)
 
 	// uniswap.Quote(token0, token1, nodeUrl)
 	// curvefi.Quote(token0, token1, nodeUrl)
 	// curvefi.GetPoolAddress(token0, token1, nodeUrl)
-	curvefi.GetPrice(token0, token1, nodeUrl)
+	// curvefi.GetPrice(token0, token1, nodeUrl)
 }
