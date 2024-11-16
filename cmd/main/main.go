@@ -7,18 +7,15 @@ import (
 	"math"
 	"math/big"
 	"os"
-
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/pancake"
-
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
-
 	// "github.com/ethereum/go-ethereum/node"
+	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"net/http"
 )
 
 type Quote struct {
@@ -36,6 +33,7 @@ type Response struct {
 type Config struct {
 	Port     string
 	RedisURL string
+	NodeURL  string
 }
 
 // Global config variable
@@ -52,6 +50,7 @@ func loadConfig() {
 	config = Config{
 		Port:     getEnvWithDefault("PORT", "8080"),
 		RedisURL: getEnvWithDefault("REDIS_URL", "localhost:6379"),
+		NodeURL:  getEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/-Lh1_OMuwKGBKgoU4nk07nz98TYeUZxj"),
 	}
 
 	log.Printf("Config loaded. Port: %s", config.Port)
@@ -128,19 +127,19 @@ func pairHandler(c *gin.Context) {
 	token0 := common.HexToAddress(tokenA.Address)
 	token1 := common.HexToAddress(tokenB.Address)
 
-	nodeUrl := os.Getenv("NODE_URL")
+	nodeUrl := config.NodeURL
 
 	// do these in parallel
-	fee := big.NewInt(5000)
-	pancake.Quote(token0, token1, fee, nodeUrl)
+	// fee := big.NewInt(5000)
+	// pancake.Quote(token0, token1, fee, nodeUrl)
 
-	// uniswap.Quote(token0, token1, nodeUrl)
+	quoteResponse := uniswap.Quote(token0, token1, nodeUrl)
 	// curvefi.Quote(token0, token1, nodeUrl)
 	// curvefi.GetPoolAddress(token0, token1, nodeUrl)
 	// curvefi.GetPrice(token0, token1, nodeUrl)
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Pair handler",
+		"result": quoteResponse,
 	})
 }
 

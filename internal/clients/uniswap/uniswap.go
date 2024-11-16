@@ -12,8 +12,11 @@ import (
 	"math/big"
 )
 
+const factorAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+const routerAddress = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+
 var (
-	addrUniV3Quoter = w3.A("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6")
+	addrUniV3Quoter = w3.A(routerAddress)
 
 	funcQuoteExactInputSingle = w3.MustNewFunc("quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96)", "uint256 amountOut")
 	funcName                  = w3.MustNewFunc("name()", "string")
@@ -31,7 +34,15 @@ type PairHandlerWrapper struct {
 	pairs.PairHandler
 }
 
-func Quote(tokenA, tokenB common.Address, rawUrl string) {
+type QuoteResponse struct {
+	ID        string `json:"id"`
+	TokenIn   string `json:"tokenIn"`
+	TokenOut  string `json:"tokenOut"`
+	AmountIn  string `json:"amountIn"`
+	AmountOut string `json:"amountOut"`
+}
+
+func Quote(tokenA, tokenB common.Address, nodeUrl string) QuoteResponse {
 
 	// parse flags
 	flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
@@ -45,7 +56,7 @@ func Quote(tokenA, tokenB common.Address, rawUrl string) {
 	flag.Parse()
 
 	// connect to RPC endpoint
-	client := w3.MustDial(rawUrl)
+	client := w3.MustDial(nodeUrl)
 	defer client.Close()
 
 	// fetch token details
@@ -67,7 +78,7 @@ func Quote(tokenA, tokenB common.Address, rawUrl string) {
 		eth.CallFunc(addrTokenOut, funcDecimals).Returns(&tokenOutDecimals),
 	); err != nil {
 		fmt.Printf("Failed to fetch token details: %v\n", err)
-		return
+		return QuoteResponse{}
 	}
 
 	// fetch quotes
@@ -86,14 +97,14 @@ func Quote(tokenA, tokenB common.Address, rawUrl string) {
 
 	if err != nil && !ok {
 		fmt.Printf("Failed to fetch quotes: %v\n", err)
-		return
-
+		return QuoteResponse{}
 	}
 
 	// print quotes
 	fmt.Printf("Exchange %q for %q\n", tokenInName, tokenOutName)
 	fmt.Printf("Amount in:\n  %s %s\n", w3.FromWei(&amountIn, tokenInDecimals), tokenInSymbol)
 	fmt.Printf("Amount out:\n")
+	
 	for i, fee := range fees {
 		if ok && callErrs[i] != nil {
 			fmt.Printf("  Pool (fee=%5v): Pool does not exist\n", fee)
@@ -101,14 +112,21 @@ func Quote(tokenA, tokenB common.Address, rawUrl string) {
 		}
 		fmt.Printf("  Pool (fee=%5v): %s %s\n", fee, w3.FromWei(&amountsOut[i], tokenOutDecimals), tokenOutSymbol)
 	}
+
+	return QuoteResponse{
+		ID:        "1",
+		TokenIn:   tokenInSymbol,
+		TokenOut:  tokenOutSymbol,
+		AmountIn:  w3.FromWei(&amountIn, tokenInDecimals),
+		AmountOut: w3.FromWei(&amountsOut[3], tokenOutDecimals),
+	}
 }
 
-func GetPoolAddress(tokenIn, tokenOut common.Address) common.Address {
+func GetPoolAddress(tokenIn, tokenOut common.Address, nodeUrl string) common.Address {
 
-	client := w3.MustDial("https://eth-mainnet.g.alchemy.com/v2/-Lh1_OMuwKGBKgoU4nk07nz98TYeUZxj")
+	client := w3.MustDial(nodeUrl)
 	defer client.Close()
 
-	const factorAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"
 	fmt.Println(factorAddress)
 
 	_factoryAddress := common.HexToAddress(factorAddress)

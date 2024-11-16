@@ -50,8 +50,8 @@ func NewProtocolPair(protocolName, contractAddress string, pair TokenPair) Proto
 // NewPairHandler creates a new PairHandler instance
 func NewPairHandler(redisUrl string) *PairHandler {
 	client := redis.NewClient(&redis.Options{
-		Addr: redisUrl,
-		DB:   0,
+		Addr:     redisUrl,
+		DB:       0,
 		Password: "Test1234!",
 	})
 
