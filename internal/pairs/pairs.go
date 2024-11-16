@@ -5,14 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-redis/redis/v8"
 )
 
 // ERC20Token represents a single ERC20 token
 type ERC20Token struct {
-	Address  string
+	Address  common.Address
+	Name	 string
 	Symbol   string
-	Decimals int
+	Decimals uint8
 }
 
 // TokenPair represents a pair of ERC20 tokens
@@ -35,7 +37,12 @@ type PairHandler struct {
 	ProtocolPairs map[string][]ProtocolPair
 }
 
-func NewERC20Token(address, symbol string, decimals int) ERC20Token {
+type TokenHandler struct {
+	redisClient *redis.Client
+	nodeUrl	 string
+}
+
+func NewERC20Token(address common.Address, symbol string, decimals uint8) ERC20Token {
 	return ERC20Token{Address: address, Symbol: symbol, Decimals: decimals}
 }
 
@@ -62,6 +69,24 @@ func NewPairHandler(redisUrl string) *PairHandler {
 	}
 }
 
+func NewTokenHandler(redisUrl string, nodeUrl string) *TokenHandler {
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisUrl,
+		DB:       0,
+		Password : "Test1234!",
+	})
+
+	return &TokenHandler{
+		redisClient: client,
+		nodeUrl: nodeUrl,
+	}
+}
+
+func (th *TokenHandler) GetTokenData(ctx context.Context, address string) (string, error) {
+	// return client.Get(ctx, tokenAddress).Result()
+	return th.redisClient.Get(ctx, address).Result()
+}
+
 // AddProtocolPair adds a new protocol pair to the handler
 func (ph *PairHandler) AddProtocolPair(ctx context.Context, protocolName, contractAddress string, pair TokenPair) {
 	protocolPair := ProtocolPair{
@@ -70,7 +95,7 @@ func (ph *PairHandler) AddProtocolPair(ctx context.Context, protocolName, contra
 		Pair:            pair,
 	}
 
-	pairKey := getPairKey(pair.Token0.Address, pair.Token1.Address)
+	pairKey := getPairKey(pair.Token0.Address.String(), pair.Token1.Address.String())
 	data, err := json.Marshal(protocolPair)
 
 	if err != nil {
@@ -94,7 +119,7 @@ func (ph *PairHandler) GetProtocolPairs(token0Address, token1Address string) []P
 
 // AddPair adds a new token pair to the handler
 func (ph *PairHandler) AddPair(token0, token1 ERC20Token) {
-	pairKey := getPairKey(token0.Address, token1.Address)
+	pairKey := getPairKey(token0.Address.String(), token1.Address.String())
 	ph.Pairs[pairKey] = TokenPair{Token0: token0, Token1: token1}
 }
 

@@ -42,10 +42,10 @@ type QuoteResponse struct {
 	AmountOut string `json:"amountOut"`
 }
 
-func Quote(tokenA, tokenB common.Address, nodeUrl string) []QuoteResponse {
-
+func Quote(tokenA, tokenB common.Address, amount big.Int, nodeUrl string) []QuoteResponse {
 	// parse flags
-	flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
+	// flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
+	flag.TextVar(&amountIn, "amountIn", &amount, "Token address")
 	flag.TextVar(&addrTokenIn, "tokenIn", tokenA, "Token in")
 	flag.TextVar(&addrTokenOut, "tokenOut", tokenB, "Token out")
 
@@ -85,7 +85,7 @@ func Quote(tokenA, tokenB common.Address, nodeUrl string) []QuoteResponse {
 
 	// fetch quotes
 	var (
-		fees       = []*big.Int{big.NewInt(100), big.NewInt(500), big.NewInt(3000), big.NewInt(10000)}
+		fees       = []*big.Int{big.NewInt(500), big.NewInt(3000), big.NewInt(10000)}
 		calls      = make([]w3types.RPCCaller, len(fees))
 		amountsOut = make([]big.Int, len(fees))
 	)

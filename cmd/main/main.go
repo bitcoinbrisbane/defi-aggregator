@@ -7,15 +7,21 @@ import (
 	"math"
 	"math/big"
 	"os"
+
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
+	
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
+
 	// "github.com/ethereum/go-ethereum/node"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/lmittmann/w3"
+	"github.com/lmittmann/w3/module/eth"
 )
 
 type Quote struct {
@@ -76,7 +82,7 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
-	router.GET("/hello", helloHandler)
+	router.GET("/", helloHandler)
 	router.GET("/pairs", pairHandler)
 
 	// Start the server
@@ -90,53 +96,148 @@ func helloHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func pairHandler(c *gin.Context) {
-	// Initialize the pair handler
-	redisUrl := os.Getenv("REDIS_URL")
+func setupPairs() {
+	_tokenA := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+	_tokenB := common.HexToAddress("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
+	tokenA := pairs.ERC20Token{Address: _tokenA, Symbol: "USDC", Decimals: 6}
+	tokenB := pairs.ERC20Token{Address: _tokenB, Symbol: "WBTC", Decimals: 18}
+
+	redisUrl := config.RedisURL
 	pairHandler := pairs.NewPairHandler(redisUrl)
 
 	ctx := context.Background()
 
-	// TODO: Call the ERC20 token for the metadata
-
-	// Example usage
-	tokenA := pairs.ERC20Token{Address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", Symbol: "USDC", Decimals: 6}
-	tokenB := pairs.ERC20Token{Address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", Symbol: "WBTC", Decimals: 18}
-
-	// pairHandler.AddPair(tokenA, tokenB)
+	pairHandler.AddPair(tokenA, tokenB)
 
 	// Adding protocol pairs
 	pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+	pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
 	pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
 
 	// Retrieving protocol pairs
-	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address, tokenB.Address)
+	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address.String(), tokenB.Address.String())
 	for _, pp := range protocolPairs {
 		fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
 			pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
 	}
 
 	// Finding protocols for a specific pair
-	protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address, tokenB.Address)
+	protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address.String(), tokenB.Address.String())
 	fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
 	for _, pp := range protocolsForAB {
 		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
 	}
+}
 
-	token0 := common.HexToAddress(tokenA.Address)
-	token1 := common.HexToAddress(tokenB.Address)
+func getMetadata(token common.Address) pairs.ERC20Token {
+
+	nodeUrl := config.NodeURL
+	// redisUrl := config.RedisURL
+
+	// // Check to see if the token metadata is in Redis
+	// client := redis.NewClient(&redis.Options{
+	// 	Addr:     redisUrl,
+	// 	DB:       0,
+	// 	Password: "Test1234!",
+	// })
+
+	// // client.Set(context.Background(), token.String(), "metadata", 0)
+	// client.Get(context.Background(), token.String())
+
+	// return &PairHandler{
+	// 	redisClient:   client,
+	// 	Pairs:         make(map[string]TokenPair),
+	// 	ProtocolPairs: make(map[string][]ProtocolPair),
+	// }
+
+	client := w3.MustDial(nodeUrl)
+	defer client.Close()
+
+	var (
+		funcName     = w3.MustNewFunc("name()", "string")
+		funcSymbol   = w3.MustNewFunc("symbol()", "string")
+		funcDecimals = w3.MustNewFunc("decimals()", "uint8")
+	)
+
+	// fetch token details
+	var (
+		name     string
+		symbol   string
+		decimals uint8
+		// address common.Address
+	)
+
+	_token := pairs.ERC20Token{
+		Address: token,
+	}
+
+	if err := client.Call(
+		eth.CallFunc(token, funcName).Returns(&name),
+		eth.CallFunc(token, funcSymbol).Returns(&symbol),
+		eth.CallFunc(token, funcDecimals).Returns(&decimals),
+	); err != nil {
+		fmt.Printf("Failed to fetch token details: %v\n", err)
+
+		// Set the token metadata
+		// TODO: Probably a better way to handle this
+		_token.Name = name
+		_token.Symbol = symbol
+		_token.Decimals = decimals
+
+	}
+
+	return _token
+}
+
+func pairHandler(c *gin.Context) {
+
+	tokenAAddress := c.DefaultQuery("tokena", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+	tokenBAddress := c.DefaultQuery("tokenb", "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
+
+	// // Initialize the pair handler
+	// redisUrl := config.RedisURL
+	// pairHandler := pairs.NewPairHandler(redisUrl)
+
+	// ctx := context.Background()
+
+	// // TODO: Call the ERC20 token for the metadata
+
+	// // Example usage
+	// tokenA := pairs.ERC20Token{Address: tokenAAddress, Symbol: "USDC", Decimals: 6}
+	// tokenB := pairs.ERC20Token{Address: tokenBAddress, Symbol: "WBTC", Decimals: 18}
+
+	// pairHandler.AddPair(tokenA, tokenB)
+
+	// // Adding protocol pairs
+	// pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+	// pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+	// pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+
+	// // Retrieving protocol pairs
+	// protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address, tokenB.Address)
+	// for _, pp := range protocolPairs {
+	// 	fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
+	// 		pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
+	// }
+
+	// // Finding protocols for a specific pair
+	// protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address, tokenB.Address)
+	// fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
+	// for _, pp := range protocolsForAB {
+	// 	fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
+	// }
+
+	token0 := getMetadata(common.HexToAddress(tokenAAddress))
+	token1 := getMetadata(common.HexToAddress(tokenBAddress))
 
 	nodeUrl := config.NodeURL
 
 	// do these in parallel
-	// fee := big.NewInt(5000)
 	// pancake.Quote(token0, token1, fee, nodeUrl)
 
-	quoteResponse := uniswap.Quote(token0, token1, nodeUrl)
-	// curvefi.Quote(token0, token1, nodeUrl)
-	// curvefi.GetPoolAddress(token0, token1, nodeUrl)
-	// curvefi.GetPrice(token0, token1, nodeUrl)
+	// $1,000 USDC
+	amount := big.NewInt(1000000000)
+	quoteResponse := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
 
 	c.JSON(http.StatusOK, gin.H{
 		"result": quoteResponse,
