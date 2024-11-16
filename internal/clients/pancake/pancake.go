@@ -141,9 +141,9 @@ func Quotes(tokenA, tokenB common.Address, rawUrl string) {
 		amountsOut = make([]big.Int, len(fees))
 	)
 
-	for i, fee := range fees {
-		calls[i] = eth.CallFunc(factorAddress, funcQuoteExactInputSingle, addrTokenIn, addrTokenOut, fee, &amountIn, w3.Big0).Returns(&amountsOut[i])
-	}
+	// for i, fee := range fees {
+	// 	// calls[i] = eth.CallFunc(factorAddress, funcQuoteExactInputSingle, addrTokenIn, addrTokenOut, fee, &amountIn, w3.Big0).Returns(&amountsOut[i])
+	// }
 
 	err := client.Call(calls...)
 	callErrs, ok := err.(w3.CallErrors)
