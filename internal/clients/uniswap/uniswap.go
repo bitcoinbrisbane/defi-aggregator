@@ -42,7 +42,7 @@ type QuoteResponse struct {
 	AmountOut string `json:"amountOut"`
 }
 
-func Quote(tokenA, tokenB common.Address, nodeUrl string) QuoteResponse {
+func Quote(tokenA, tokenB common.Address, nodeUrl string) []QuoteResponse {
 
 	// parse flags
 	flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
@@ -69,6 +69,8 @@ func Quote(tokenA, tokenB common.Address, nodeUrl string) QuoteResponse {
 		tokenOutDecimals uint8
 	)
 
+	quotes := make([]QuoteResponse, 0)
+
 	if err := client.Call(
 		eth.CallFunc(addrTokenIn, funcName).Returns(&tokenInName),
 		eth.CallFunc(addrTokenIn, funcSymbol).Returns(&tokenInSymbol),
@@ -78,7 +80,7 @@ func Quote(tokenA, tokenB common.Address, nodeUrl string) QuoteResponse {
 		eth.CallFunc(addrTokenOut, funcDecimals).Returns(&tokenOutDecimals),
 	); err != nil {
 		fmt.Printf("Failed to fetch token details: %v\n", err)
-		return QuoteResponse{}
+		return quotes
 	}
 
 	// fetch quotes
@@ -97,29 +99,30 @@ func Quote(tokenA, tokenB common.Address, nodeUrl string) QuoteResponse {
 
 	if err != nil && !ok {
 		fmt.Printf("Failed to fetch quotes: %v\n", err)
-		return QuoteResponse{}
+		return quotes
 	}
 
 	// print quotes
 	fmt.Printf("Exchange %q for %q\n", tokenInName, tokenOutName)
 	fmt.Printf("Amount in:\n  %s %s\n", w3.FromWei(&amountIn, tokenInDecimals), tokenInSymbol)
 	fmt.Printf("Amount out:\n")
-	
+
 	for i, fee := range fees {
 		if ok && callErrs[i] != nil {
 			fmt.Printf("  Pool (fee=%5v): Pool does not exist\n", fee)
 			continue
 		}
 		fmt.Printf("  Pool (fee=%5v): %s %s\n", fee, w3.FromWei(&amountsOut[i], tokenOutDecimals), tokenOutSymbol)
+		quotes = append(quotes, QuoteResponse{
+			ID:        fmt.Sprintf("%d", i),
+			TokenIn:   tokenInSymbol,
+			TokenOut:  tokenOutSymbol,
+			AmountIn:  w3.FromWei(&amountIn, tokenInDecimals),
+			AmountOut: w3.FromWei(&amountsOut[i], tokenOutDecimals),
+		})
 	}
 
-	return QuoteResponse{
-		ID:        "1",
-		TokenIn:   tokenInSymbol,
-		TokenOut:  tokenOutSymbol,
-		AmountIn:  w3.FromWei(&amountIn, tokenInDecimals),
-		AmountOut: w3.FromWei(&amountsOut[3], tokenOutDecimals),
-	}
+	return quotes
 }
 
 func GetPoolAddress(tokenIn, tokenOut common.Address, nodeUrl string) common.Address {
