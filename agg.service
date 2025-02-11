@@ -1,0 +1,17 @@
+[Unit]
+Description=Gin Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/gin-server
+ExecStart=/usr/bin/go run main.go
+Restart=always
+RestartSec=5
+Environment=GIN_MODE=release
+StandardOutput=append:/var/log/gin-server.log
+StandardError=append:/var/log/gin-server.error.log
+
+[Install]
+WantedBy=multi-user.target
