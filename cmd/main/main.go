@@ -7,9 +7,7 @@ import (
 	"math"
 	"math/big"
 	"os"
-
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
-	
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
@@ -190,6 +188,15 @@ func getMetadata(token common.Address) pairs.ERC20Token {
 }
 
 func pairHandler(c *gin.Context) {
+	// Use defer to recover from panics in this handler
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in pairHandler: %v", r)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error occurred",
+			})
+		}
+	}()
 
 	tokenAAddress := c.Query("tokena")
 	if tokenAAddress == "" {
@@ -219,17 +226,29 @@ func pairHandler(c *gin.Context) {
 		})
 		return
 	}
+	
+	// Get option to return all quotes or just best
+	bestOnly := c.DefaultQuery("best", "true") == "true"
 
 	token0 := getMetadata(common.HexToAddress(tokenAAddress))
 	token1 := getMetadata(common.HexToAddress(tokenBAddress))
 
 	nodeUrl := config.NodeURL
 
-	quoteResponse := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
-
-	c.JSON(http.StatusOK, gin.H{
-		"result": quoteResponse,
-	})
+	quotes := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
+	
+	if bestOnly && len(quotes) > 0 {
+		// Get the best quote only
+		bestQuote := uniswap.GetBestQuote(quotes)
+		c.JSON(http.StatusOK, gin.H{
+			"result": bestQuote,
+		})
+	} else {
+		// Return all quotes
+		c.JSON(http.StatusOK, gin.H{
+			"result": quotes,
+		})
+	}
 }
 
 func test() {

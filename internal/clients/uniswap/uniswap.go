@@ -7,7 +7,6 @@ import (
 	"github.com/lmittmann/w3"
 	"github.com/lmittmann/w3/module/eth"
 	"github.com/lmittmann/w3/w3types"
-	"log"
 	"math/big"
 )
 
@@ -33,28 +32,47 @@ type PairHandlerWrapper struct {
 	pairs.PairHandler
 }
 
+// In your uniswap.go file, update the QuoteResponse struct to include fee and route address
 type QuoteResponse struct {
-	ID        string `json:"id"`
-	TokenIn   string `json:"tokenIn"`
-	TokenOut  string `json:"tokenOut"`
-	AmountIn  string `json:"amountIn"`
-	AmountOut string `json:"amountOut"`
+	ID            string `json:"id"`
+	TokenIn       string `json:"tokenIn"`
+	TokenOut      string `json:"tokenOut"`
+	AmountIn      string `json:"amountIn"`
+	AmountOut     string `json:"amountOut"`
+	Fee           string `json:"fee"`          // Add fee information
+	RouteAddress  string `json:"routeAddress"` // Add route address
+}
+// Add a new function to get the best quote from all quotes
+func GetBestQuote(quotes []QuoteResponse) *QuoteResponse {
+	if len(quotes) == 0 {
+		return nil
+	}
+	
+	// Find the quote with the highest amountOut
+	bestIndex := 0
+	bestAmountOut, _ := new(big.Float).SetString(quotes[0].AmountOut)
+	
+	for i := 1; i < len(quotes); i++ {
+		currentAmountOut, _ := new(big.Float).SetString(quotes[i].AmountOut)
+		if currentAmountOut.Cmp(bestAmountOut) > 0 {
+			bestAmountOut = currentAmountOut
+			bestIndex = i
+		}
+	}
+	
+	return &quotes[bestIndex]
 }
 
+// Update the Quote function to include fee and router address info
 func Quote(tokenA, tokenB common.Address, amount big.Int, nodeUrl string) []QuoteResponse {
-	// Remove flag definitions - use function parameters directly instead
+    // Use function parameters directly
     addrTokenIn = tokenA
     addrTokenOut = tokenB
     amountIn = amount
-
-    // Remove flag.Parse() call - no more flags to parse
     
     // connect to RPC endpoint
     client := w3.MustDial(nodeUrl)
     defer client.Close()
-
-    // Rest of your function remains the same
-    // ...
 
     // fetch token details
     var (
@@ -80,79 +98,70 @@ func Quote(tokenA, tokenB common.Address, amount big.Int, nodeUrl string) []Quot
         return quotes
     }
 
-	// fetch quotes
-	var (
-		fees       = []*big.Int{big.NewInt(500), big.NewInt(3000), big.NewInt(10000)}
-		calls      = make([]w3types.RPCCaller, len(fees))
-		amountsOut = make([]big.Int, len(fees))
-	)
+    // fetch quotes
+    var (
+        fees       = []*big.Int{big.NewInt(500), big.NewInt(3000), big.NewInt(10000)}
+        calls      = make([]w3types.RPCCaller, len(fees))
+        amountsOut = make([]big.Int, len(fees))
+    )
 
-	for i, fee := range fees {
-		calls[i] = eth.CallFunc(addrUniV3Quoter, funcQuoteExactInputSingle, addrTokenIn, addrTokenOut, fee, &amountIn, w3.Big0).Returns(&amountsOut[i])
-	}
+    for i, fee := range fees {
+        calls[i] = eth.CallFunc(addrUniV3Quoter, funcQuoteExactInputSingle, addrTokenIn, addrTokenOut, fee, &amountIn, w3.Big0).Returns(&amountsOut[i])
+    }
 
-	err := client.Call(calls...)
-	callErrs, ok := err.(w3.CallErrors)
+    err := client.Call(calls...)
+    callErrs, ok := err.(w3.CallErrors)
 
-	if err != nil && !ok {
-		fmt.Printf("Failed to fetch quotes: %v\n", err)
-		return quotes
-	}
+    if err != nil && !ok {
+        fmt.Printf("Failed to fetch quotes: %v\n", err)
+        return quotes
+    }
 
-	// print quotes
-	fmt.Printf("Exchange %q for %q\n", tokenInName, tokenOutName)
-	fmt.Printf("Amount in:\n  %s %s\n", w3.FromWei(&amountIn, tokenInDecimals), tokenInSymbol)
-	fmt.Printf("Amount out:\n")
+    // print quotes
+    fmt.Printf("Exchange %q for %q\n", tokenInName, tokenOutName)
+    fmt.Printf("Amount in:\n  %s %s\n", w3.FromWei(&amountIn, tokenInDecimals), tokenInSymbol)
+    fmt.Printf("Amount out:\n")
 
-	for i, fee := range fees {
-		if ok && callErrs[i] != nil {
-			fmt.Printf("  Pool (fee=%5v): Pool does not exist\n", fee)
-			continue
-		}
-		fmt.Printf("  Pool (fee=%5v): %s %s\n", fee, w3.FromWei(&amountsOut[i], tokenOutDecimals), tokenOutSymbol)
-		quotes = append(quotes, QuoteResponse{
-			ID:        fmt.Sprintf("%d", i),
-			TokenIn:   tokenInSymbol,
-			TokenOut:  tokenOutSymbol,
-			AmountIn:  w3.FromWei(&amountIn, tokenInDecimals),
-			AmountOut: w3.FromWei(&amountsOut[i], tokenOutDecimals),
-		})
-	}
+    for i, fee := range fees {
+        if ok && callErrs[i] != nil {
+            fmt.Printf("  Pool (fee=%5v): Pool does not exist\n", fee)
+            continue
+        }
+        
+        // Get pool address for this pair and fee
+        poolAddress := GetPoolAddress(addrTokenIn, addrTokenOut, fee, nodeUrl)
+        
+        fmt.Printf("  Pool (fee=%5v): %s %s\n", fee, w3.FromWei(&amountsOut[i], tokenOutDecimals), tokenOutSymbol)
+        quotes = append(quotes, QuoteResponse{
+            ID:           fmt.Sprintf("%d", i),
+            TokenIn:      tokenInSymbol,
+            TokenOut:     tokenOutSymbol,
+            AmountIn:     w3.FromWei(&amountIn, tokenInDecimals),
+            AmountOut:    w3.FromWei(&amountsOut[i], tokenOutDecimals),
+            Fee:          fmt.Sprintf("%d", fee.Uint64()), // Add fee information
+            RouteAddress: poolAddress.String(),            // Add route address
+        })
+    }
 
-	return quotes
+    return quotes
 }
 
-func GetPoolAddress(tokenIn, tokenOut common.Address, nodeUrl string) common.Address {
+func GetPoolAddress(tokenIn, tokenOut common.Address, fee *big.Int, nodeUrl string) common.Address {
+    client := w3.MustDial(nodeUrl)
+    defer client.Close()
 
-	client := w3.MustDial(nodeUrl)
-	defer client.Close()
-
-	fmt.Println(factorAddress)
-
-	_factoryAddress := common.HexToAddress(factorAddress)
-
-	// funcBalanceOf := w3.MustNewFunc("balanceOf(address)", "uint256")
-
-	fee := &big.Int{}
-	fee.SetInt64(3000)
-	// fee := uint24(3000) // Fee tier of 0.3%
-
-	// getPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
-	getPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
-	input, err := getPool.EncodeArgs(tokenIn, tokenOut, fee)
-	fmt.Printf("getPool input: 0x%x\n", input)
-
-	if err != nil {
-		log.Fatalf("Failed to encode arguments: %v", err)
-	}
-
-	var poolAddress string
-
-	if err := client.Call(
-		eth.CallFunc(_factoryAddress, getPool, input).Returns(&poolAddress),
-	); err != nil {
-		fmt.Printf("Request failed: %v\n", err)
-	}
-
-	return common.HexToAddress(poolAddress)
+    _factoryAddress := common.HexToAddress(factorAddress)
+    
+    getPool := w3.MustNewFunc("getPool(address,address,uint24)", "address")
+    
+    var poolAddress common.Address
+    
+    if err := client.Call(
+        eth.CallFunc(_factoryAddress, getPool, tokenIn, tokenOut, fee).Returns(&poolAddress),
+    ); err != nil {
+        fmt.Printf("Failed to get pool address: %v\n", err)
+        return common.Address{}
+    }
+    
+    return poolAddress
 }
