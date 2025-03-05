@@ -56,7 +56,7 @@ func loadConfig() {
 	config = Config{
 		Port:     getEnvWithDefault("PORT", "8080"),
 		RedisURL: getEnvWithDefault("REDIS_URL", "localhost:6379"),
-		NodeURL:  getEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/-Lh1_OMuwKGBKgoU4nk07nz98TYeUZxj"),
+		NodeURL:  getEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/fmiJslJk8E60f0Ni9QLq5nsnjm-lUzn1"),
 	}
 
 	log.Printf("Config loaded. Port: %s", config.Port)

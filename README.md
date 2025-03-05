@@ -6,6 +6,13 @@ This project is a decentralized finance (DeFi) aggregator that allows users to v
 
 ## Requirements
 
+## Install Go
+
+```bash
+
+```
+
+## Copy system 
 
 ## Starting
 
