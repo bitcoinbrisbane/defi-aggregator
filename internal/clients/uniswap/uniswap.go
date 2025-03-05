@@ -1,7 +1,6 @@
 package uniswap
 
 import (
-	"flag"
 	"fmt"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
@@ -43,45 +42,43 @@ type QuoteResponse struct {
 }
 
 func Quote(tokenA, tokenB common.Address, amount big.Int, nodeUrl string) []QuoteResponse {
-	// parse flags
-	// flag.TextVar(&amountIn, "amountIn", w3.I("1 ether"), "Token address")
-	flag.TextVar(&amountIn, "amountIn", &amount, "Token address")
-	flag.TextVar(&addrTokenIn, "tokenIn", tokenA, "Token in")
-	flag.TextVar(&addrTokenOut, "tokenOut", tokenB, "Token out")
+	// Remove flag definitions - use function parameters directly instead
+    addrTokenIn = tokenA
+    addrTokenOut = tokenB
+    amountIn = amount
 
-	flag.Usage = func() {
-		fmt.Println("uniswap_quote prints the UniSwap V3 exchange rate to swap amountIn of tokenIn for tokenOut.")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
+    // Remove flag.Parse() call - no more flags to parse
+    
+    // connect to RPC endpoint
+    client := w3.MustDial(nodeUrl)
+    defer client.Close()
 
-	// connect to RPC endpoint
-	client := w3.MustDial(nodeUrl)
-	defer client.Close()
+    // Rest of your function remains the same
+    // ...
 
-	// fetch token details
-	var (
-		tokenInName      string
-		tokenInSymbol    string
-		tokenInDecimals  uint8
-		tokenOutName     string
-		tokenOutSymbol   string
-		tokenOutDecimals uint8
-	)
+    // fetch token details
+    var (
+        tokenInName      string
+        tokenInSymbol    string
+        tokenInDecimals  uint8
+        tokenOutName     string
+        tokenOutSymbol   string
+        tokenOutDecimals uint8
+    )
 
-	quotes := make([]QuoteResponse, 0)
+    quotes := make([]QuoteResponse, 0)
 
-	if err := client.Call(
-		eth.CallFunc(addrTokenIn, funcName).Returns(&tokenInName),
-		eth.CallFunc(addrTokenIn, funcSymbol).Returns(&tokenInSymbol),
-		eth.CallFunc(addrTokenIn, funcDecimals).Returns(&tokenInDecimals),
-		eth.CallFunc(addrTokenOut, funcName).Returns(&tokenOutName),
-		eth.CallFunc(addrTokenOut, funcSymbol).Returns(&tokenOutSymbol),
-		eth.CallFunc(addrTokenOut, funcDecimals).Returns(&tokenOutDecimals),
-	); err != nil {
-		fmt.Printf("Failed to fetch token details: %v\n", err)
-		return quotes
-	}
+    if err := client.Call(
+        eth.CallFunc(addrTokenIn, funcName).Returns(&tokenInName),
+        eth.CallFunc(addrTokenIn, funcSymbol).Returns(&tokenInSymbol),
+        eth.CallFunc(addrTokenIn, funcDecimals).Returns(&tokenInDecimals),
+        eth.CallFunc(addrTokenOut, funcName).Returns(&tokenOutName),
+        eth.CallFunc(addrTokenOut, funcSymbol).Returns(&tokenOutSymbol),
+        eth.CallFunc(addrTokenOut, funcDecimals).Returns(&tokenOutDecimals),
+    ); err != nil {
+        fmt.Printf("Failed to fetch token details: %v\n", err)
+        return quotes
+    }
 
 	// fetch quotes
 	var (

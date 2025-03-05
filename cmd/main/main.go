@@ -191,52 +191,40 @@ func getMetadata(token common.Address) pairs.ERC20Token {
 
 func pairHandler(c *gin.Context) {
 
-	tokenAAddress := c.DefaultQuery("tokena", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	tokenBAddress := c.DefaultQuery("tokenb", "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-
-	// // Initialize the pair handler
-	// redisUrl := config.RedisURL
-	// pairHandler := pairs.NewPairHandler(redisUrl)
-
-	// ctx := context.Background()
-
-	// // TODO: Call the ERC20 token for the metadata
-
-	// // Example usage
-	// tokenA := pairs.ERC20Token{Address: tokenAAddress, Symbol: "USDC", Decimals: 6}
-	// tokenB := pairs.ERC20Token{Address: tokenBAddress, Symbol: "WBTC", Decimals: 18}
-
-	// pairHandler.AddPair(tokenA, tokenB)
-
-	// // Adding protocol pairs
-	// pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	// pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	// pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-
-	// // Retrieving protocol pairs
-	// protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address, tokenB.Address)
-	// for _, pp := range protocolPairs {
-	// 	fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
-	// 		pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
-	// }
-
-	// // Finding protocols for a specific pair
-	// protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address, tokenB.Address)
-	// fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
-	// for _, pp := range protocolsForAB {
-	// 	fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
-	// }
+	tokenAAddress := c.Query("tokena")
+	if tokenAAddress == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing required parameter: tokena",
+		})
+		return
+	}
+	
+	tokenBAddress := c.Query("tokenb")
+	if tokenBAddress == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing required parameter: tokenb",
+		})
+		return
+	}
+	
+	// Add the amount parameter from query string with default value of 10000
+	amountStr := c.DefaultQuery("amount", "10000")
+	
+	// Convert the amount string to a big.Int
+	amount, success := new(big.Int).SetString(amountStr, 10)
+	if !success {
+		// Handle invalid amount parameter
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid amount parameter",
+		})
+		return
+	}
 
 	token0 := getMetadata(common.HexToAddress(tokenAAddress))
 	token1 := getMetadata(common.HexToAddress(tokenBAddress))
 
 	nodeUrl := config.NodeURL
 
-	// do these in parallel
-	// pancake.Quote(token0, token1, fee, nodeUrl)
-
-	// $1,000 USDC
-	amount := big.NewInt(1000000000)
 	quoteResponse := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
 
 	c.JSON(http.StatusOK, gin.H{
