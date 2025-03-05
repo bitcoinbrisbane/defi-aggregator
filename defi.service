@@ -1,0 +1,22 @@
+[Unit]
+Description=DeFi Aggregator Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/defi-aggregator
+ExecStart=/usr/bin/go run cmd/main/main.go
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=defi-aggregator
+
+# Hardening measures
+PrivateTmp=true
+ProtectSystem=full
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
