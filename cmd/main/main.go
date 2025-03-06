@@ -7,7 +7,12 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"time"
+
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/aggregator"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
+
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
@@ -80,8 +85,13 @@ func main() {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
+	// Create aggregator service
+	aggregatorService := aggregator.NewService(config.NodeURL)
+
+	// Add routes
 	router.GET("/", helloHandler)
-	router.GET("/pairs", pairHandler)
+	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
+	router.GET("/protocols", protocolsHandler)
 
 	// Start the server
 	router.Run(":" + config.Port)
@@ -92,6 +102,119 @@ func helloHandler(c *gin.Context) {
 		Message: "Hello, World!",
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+func protocolsHandler(c *gin.Context) {
+	protocols := protocols.GetSupportedProtocols()
+	c.JSON(http.StatusOK, gin.H{
+		"protocols": protocols,
+	})
+}
+
+func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
+	// Use defer to recover from panics in this handler
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in pairHandler: %v", r)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error occurred",
+			})
+		}
+	}()
+
+	// Get token addresses from query parameters
+	tokenAAddress := c.Query("tokena")
+	if tokenAAddress == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing required parameter: tokena",
+		})
+		return
+	}
+	
+	tokenBAddress := c.Query("tokenb")
+	if tokenBAddress == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing required parameter: tokenb",
+		})
+		return
+	}
+	
+	// Get amount from query parameter
+	amountStr := c.DefaultQuery("amount", "10000")
+	
+	// Convert amount string to big.Int
+	amount, success := new(big.Int).SetString(amountStr, 10)
+	if !success {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid amount parameter",
+		})
+		return
+	}
+	
+	// Get token metadata
+	tokenA := common.HexToAddress(tokenAAddress)
+	tokenB := common.HexToAddress(tokenBAddress)
+	
+	// Get token metadata
+	tokenAName, tokenASymbol, tokenADecimals, err := uniswap.GetTokenMetadata(tokenA, config.NodeURL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Failed to get tokenA metadata: %v", err),
+		})
+		return
+	}
+	
+	tokenBName, tokenBSymbol, tokenBDecimals, err := uniswap.GetTokenMetadata(tokenB, config.NodeURL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Failed to get tokenB metadata: %v", err),
+		})
+		return
+	}
+	
+	// Log token information
+	log.Printf("TokenA: %s (%s) - %d decimals", tokenAName, tokenASymbol, tokenADecimals)
+	log.Printf("TokenB: %s (%s) - %d decimals", tokenBName, tokenBSymbol, tokenBDecimals)
+	
+	// Option to return all routes or just the best
+	showAllRoutes := c.DefaultQuery("all", "false") == "true"
+	
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	
+	// Find the best route across all protocols
+	result, err := aggregatorService.FindBestRoute(
+		ctx,
+		tokenA,
+		tokenB,
+		amount,
+		tokenADecimals,
+		tokenBDecimals,
+		tokenASymbol,
+		tokenBSymbol,
+	)
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to find routes: %v", err),
+		})
+		return
+	}
+	
+	// Return the result
+	if showAllRoutes {
+		// Return all routes
+		c.JSON(http.StatusOK, gin.H{
+			"bestRoute": result.BestRoute,
+			"allRoutes": result.AllRoutes,
+		})
+	} else {
+		// Return only the best route
+		c.JSON(http.StatusOK, gin.H{
+			"result": result.BestRoute,
+		})
+	}
 }
 
 func setupPairs() {
@@ -187,69 +310,69 @@ func getMetadata(token common.Address) pairs.ERC20Token {
 	return _token
 }
 
-func pairHandler(c *gin.Context) {
-	// Use defer to recover from panics in this handler
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("Recovered from panic in pairHandler: %v", r)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Internal server error occurred",
-			})
-		}
-	}()
+// func pairHandler(c *gin.Context) {
+// 	// Use defer to recover from panics in this handler
+// 	defer func() {
+// 		if r := recover(); r != nil {
+// 			log.Printf("Recovered from panic in pairHandler: %v", r)
+// 			c.JSON(http.StatusInternalServerError, gin.H{
+// 				"error": "Internal server error occurred",
+// 			})
+// 		}
+// 	}()
 
-	tokenAAddress := c.Query("tokena")
-	if tokenAAddress == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Missing required parameter: tokena",
-		})
-		return
-	}
+// 	tokenAAddress := c.Query("tokena")
+// 	if tokenAAddress == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{
+// 			"error": "Missing required parameter: tokena",
+// 		})
+// 		return
+// 	}
 	
-	tokenBAddress := c.Query("tokenb")
-	if tokenBAddress == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Missing required parameter: tokenb",
-		})
-		return
-	}
+// 	tokenBAddress := c.Query("tokenb")
+// 	if tokenBAddress == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{
+// 			"error": "Missing required parameter: tokenb",
+// 		})
+// 		return
+// 	}
 	
-	// Add the amount parameter from query string with default value of 10000
-	amountStr := c.DefaultQuery("amount", "10000")
+// 	// Add the amount parameter from query string with default value of 10000
+// 	amountStr := c.DefaultQuery("amount", "10000")
 	
-	// Convert the amount string to a big.Int
-	amount, success := new(big.Int).SetString(amountStr, 10)
-	if !success {
-		// Handle invalid amount parameter
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid amount parameter",
-		})
-		return
-	}
+// 	// Convert the amount string to a big.Int
+// 	amount, success := new(big.Int).SetString(amountStr, 10)
+// 	if !success {
+// 		// Handle invalid amount parameter
+// 		c.JSON(http.StatusBadRequest, gin.H{
+// 			"error": "Invalid amount parameter",
+// 		})
+// 		return
+// 	}
 	
-	// Get option to return all quotes or just best
-	bestOnly := c.DefaultQuery("best", "true") == "true"
+// 	// Get option to return all quotes or just best
+// 	bestOnly := c.DefaultQuery("best", "true") == "true"
 
-	token0 := getMetadata(common.HexToAddress(tokenAAddress))
-	token1 := getMetadata(common.HexToAddress(tokenBAddress))
+// 	token0 := getMetadata(common.HexToAddress(tokenAAddress))
+// 	token1 := getMetadata(common.HexToAddress(tokenBAddress))
 
-	nodeUrl := config.NodeURL
+// 	nodeUrl := config.NodeURL
 
-	quotes := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
+// 	quotes := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
 	
-	if bestOnly && len(quotes) > 0 {
-		// Get the best quote only
-		bestQuote := uniswap.GetBestQuote(quotes)
-		c.JSON(http.StatusOK, gin.H{
-			"result": bestQuote,
-		})
-	} else {
-		// Return all quotes
-		c.JSON(http.StatusOK, gin.H{
-			"result": quotes,
-		})
-	}
-}
+// 	if bestOnly && len(quotes) > 0 {
+// 		// Get the best quote only
+// 		bestQuote := uniswap.GetBestQuote(quotes)
+// 		c.JSON(http.StatusOK, gin.H{
+// 			"result": bestQuote,
+// 		})
+// 	} else {
+// 		// Return all quotes
+// 		c.JSON(http.StatusOK, gin.H{
+// 			"result": quotes,
+// 		})
+// 	}
+// }
 
 func test() {
 	quote1 := Quote{
