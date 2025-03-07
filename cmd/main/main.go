@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/aggregator"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
 
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
@@ -22,10 +24,23 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"github.com/go-redis/redis/v8"
 	"github.com/lmittmann/w3"
 	"github.com/lmittmann/w3/module/eth"
 )
+
+// TokenRequest defines the structure for the token post request
+type TokenRequest struct {
+	Address string `json:"address" binding:"required"`
+}
+
+// TokenMetadata represents the ERC20 token metadata
+type TokenMetadata struct {
+	Address  string `json:"address"`
+	Name     string `json:"name"`
+	Symbol   string `json:"symbol"`
+	Decimals uint8  `json:"decimals"`
+}
 
 type Quote struct {
 	TokenIn   string
@@ -38,32 +53,217 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-// Config holds all our environment configurations
-type Config struct {
-	Port     string
-	RedisURL string
-	NodeURL  string
-}
+// // Config holds all our environment configurations
+// // Update Config struct to include Redis password and API key
+// type Config struct {
+// 	Port          string
+// 	RedisURL      string
+// 	NodeURL       string
+// 	RedisPassword string
+// 	APIKey        string
+// }
 
 // Global config variable
-var config Config
+// var config Config
 
-func loadConfig() {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
+// API Key middleware for simple authentication
+func apiKeyAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		apiKey := c.GetHeader("x-api-key")
+		expectedApiKey := getEnvWithDefault("API_KEY", "default-api-key")
+		
+		if apiKey == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Missing API key",
+			})
+			return
+		}
+		
+		if apiKey != expectedApiKey {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid API key",
+			})
+			return
+		}
+		
+		c.Next()
 	}
-
-	// Initialize config with environment variables
-	config = Config{
-		Port:     getEnvWithDefault("PORT", "8080"),
-		RedisURL: getEnvWithDefault("REDIS_URL", "localhost:6379"),
-		NodeURL:  getEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/fmiJslJk8E60f0Ni9QLq5nsnjm-lUzn1"),
-	}
-
-	log.Printf("Config loaded. Port: %s", config.Port)
 }
+
+// connectRedis establishes a connection to Redis
+func connectRedis() (*redis.Client, error) {
+	redisURL := getEnvWithDefault("REDIS_URL", "localhost:6379")
+	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "")
+	redisDB := 0
+	
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisURL,
+		Password: redisPassword,
+		DB:       redisDB,
+	})
+	
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	_, err := client.Ping(ctx).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %v", err)
+	}
+	
+	return client, nil
+}
+
+// saveTokenMetadata saves the token metadata to Redis
+func saveTokenMetadata(ctx context.Context, client *redis.Client, metadata TokenMetadata) error {
+	// Use token address as key
+	key := "token:" + metadata.Address
+	
+	// Marshal the metadata to JSON
+	jsonData, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal token metadata: %v", err)
+	}
+	
+	// Save to Redis
+	err = client.Set(ctx, key, jsonData, 0).Err() // 0 = no expiration
+	if err != nil {
+		return fmt.Errorf("failed to save token metadata to Redis: %v", err)
+	}
+	
+	return nil
+}
+
+// getTokenMetadataFromRedis retrieves token metadata from Redis
+func getTokenMetadataFromRedis(ctx context.Context, client *redis.Client, address string) (*TokenMetadata, error) {
+	key := "token:" + address
+	
+	// Get from Redis
+	data, err := client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return nil, nil // Key does not exist
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get token metadata from Redis: %v", err)
+	}
+	
+	// Unmarshal the data
+	var metadata TokenMetadata
+	err = json.Unmarshal([]byte(data), &metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal token metadata: %v", err)
+	}
+	
+	return &metadata, nil
+}
+
+// tokenPostHandler handles the /token POST endpoint
+func tokenPostHandler(c *gin.Context) {
+	// Use defer to recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in tokenPostHandler: %v", r)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error occurred",
+			})
+		}
+	}()
+	
+	// Parse request body
+	var request TokenRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Invalid request format: %v", err),
+		})
+		return
+	}
+	
+	// Validate Ethereum address
+	if !common.IsHexAddress(request.Address) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid Ethereum address format",
+		})
+		return
+	}
+	
+	tokenAddress := common.HexToAddress(request.Address)
+	
+	// Connect to Redis
+	redisClient, err := connectRedis()
+	if err != nil {
+		log.Printf("Failed to connect to Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to connect to database",
+		})
+		return
+	}
+	defer redisClient.Close()
+	
+	// Check if we already have this token in Redis
+	ctx := context.Background()
+	existingMetadata, err := getTokenMetadataFromRedis(ctx, redisClient, tokenAddress.String())
+	if err != nil {
+		log.Printf("Error checking Redis for token: %v", err)
+	}
+	
+	if existingMetadata != nil {
+		// Return existing metadata if found
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Token metadata retrieved from cache",
+			"token":   existingMetadata,
+		})
+		return
+	}
+	
+	// Fetch token metadata from the blockchain
+	cfg := config.GetConfig()
+	name, symbol, decimals, err := uniswap.GetTokenMetadata(tokenAddress, cfg.NodeURL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Failed to fetch token metadata: %v", err),
+		})
+		return
+	}
+	
+	// Create metadata object
+	metadata := TokenMetadata{
+		Address:  tokenAddress.String(),
+		Name:     name,
+		Symbol:   symbol,
+		Decimals: decimals,
+	}
+	
+	// Save to Redis
+	err = saveTokenMetadata(ctx, redisClient, metadata)
+	if err != nil {
+		log.Printf("Failed to save token metadata to Redis: %v", err)
+		// Continue even if saving fails
+	}
+	
+	// Return the metadata
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Token metadata fetched and saved",
+		"token":   metadata,
+	})
+}
+
+// func loadConfig() {
+// 	// Load .env file
+// 	err := godotenv.Load()
+// 	if err != nil {
+// 		log.Printf("Warning: .env file not found: %v", err)
+// 	}
+
+// 	// Initialize config with environment variables
+// 	config = Config{
+// 		Port:     getEnvWithDefault("PORT", "8080"),
+// 		RedisURL: getEnvWithDefault("REDIS_URL", "localhost:6379"),
+// 		NodeURL:  getEnvWithDefault("NODE_URL", "https://rpc-devnet.monadinfra.com/rpc/3fe540e310bbb6ef0b9f16cd23073b0a"),
+// 		RedisPassword: getEnvWithDefault("REDIS_PASSWORD", ""),
+// 		APIKey:      getEnvWithDefault("API_KEY", "your-api-key"),
+// 	}
+
+// 	log.Printf("Config loaded. Port: %s", config.Port)
+// }
 
 // getEnvWithDefault gets an environment variable or returns a default value
 func getEnvWithDefault(key, defaultValue string) string {
@@ -79,22 +279,29 @@ func main() {
 	router := gin.Default()
 
 	// Load the configuration
-	loadConfig()
+	cfg := config.InitConfig()
 
 	// Add middleware for logging and recovery
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
 	// Create aggregator service
-	aggregatorService := aggregator.NewService(config.NodeURL)
+	aggregatorService := aggregator.NewService(cfg.NodeURL)
 
 	// Add routes
 	router.GET("/", helloHandler)
 	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
 	router.GET("/protocols", protocolsHandler)
 
+	// Protected routes - requires API key
+	protected := router.Group("/")
+	protected.Use(apiKeyAuth())
+	{
+		protected.POST("/token", tokenPostHandler)
+	}
+
 	// Start the server
-	router.Run(":" + config.Port)
+	router.Run(":" + cfg.Port)
 }
 
 func helloHandler(c *gin.Context) {
@@ -112,6 +319,8 @@ func protocolsHandler(c *gin.Context) {
 }
 
 func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
+	cfg := config.GetConfig()
+
 	// Use defer to recover from panics in this handler
 	defer func() {
 		if r := recover(); r != nil {
@@ -156,7 +365,7 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 	tokenB := common.HexToAddress(tokenBAddress)
 	
 	// Get token metadata
-	tokenAName, tokenASymbol, tokenADecimals, err := uniswap.GetTokenMetadata(tokenA, config.NodeURL)
+	tokenAName, tokenASymbol, tokenADecimals, err := uniswap.GetTokenMetadata(tokenA, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to get tokenA metadata: %v", err),
@@ -164,7 +373,7 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 		return
 	}
 	
-	tokenBName, tokenBSymbol, tokenBDecimals, err := uniswap.GetTokenMetadata(tokenB, config.NodeURL)
+	tokenBName, tokenBSymbol, tokenBDecimals, err := uniswap.GetTokenMetadata(tokenB, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to get tokenB metadata: %v", err),
@@ -217,42 +426,42 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 	}
 }
 
-func setupPairs() {
-	_tokenA := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	_tokenB := common.HexToAddress("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-	tokenA := pairs.ERC20Token{Address: _tokenA, Symbol: "USDC", Decimals: 6}
-	tokenB := pairs.ERC20Token{Address: _tokenB, Symbol: "WBTC", Decimals: 18}
+// func setupPairs() {
+// 	_tokenA := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
+// 	_tokenB := common.HexToAddress("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
+// 	tokenA := pairs.ERC20Token{Address: _tokenA, Symbol: "USDC", Decimals: 6}
+// 	tokenB := pairs.ERC20Token{Address: _tokenB, Symbol: "WBTC", Decimals: 18}
 
-	redisUrl := config.RedisURL
-	pairHandler := pairs.NewPairHandler(redisUrl)
+// 	redisUrl := config.RedisURL
+// 	pairHandler := pairs.NewPairHandler(redisUrl)
 
-	ctx := context.Background()
+// 	ctx := context.Background()
 
-	pairHandler.AddPair(tokenA, tokenB)
+// 	pairHandler.AddPair(tokenA, tokenB)
 
-	// Adding protocol pairs
-	pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-	pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+// 	// Adding protocol pairs
+// 	pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+// 	pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
+// 	pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
 
-	// Retrieving protocol pairs
-	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address.String(), tokenB.Address.String())
-	for _, pp := range protocolPairs {
-		fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
-			pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
-	}
+// 	// Retrieving protocol pairs
+// 	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address.String(), tokenB.Address.String())
+// 	for _, pp := range protocolPairs {
+// 		fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
+// 			pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
+// 	}
 
-	// Finding protocols for a specific pair
-	protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address.String(), tokenB.Address.String())
-	fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
-	for _, pp := range protocolsForAB {
-		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
-	}
-}
+// 	// Finding protocols for a specific pair
+// 	protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address.String(), tokenB.Address.String())
+// 	fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
+// 	for _, pp := range protocolsForAB {
+// 		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
+// 	}
+// }
 
 func getMetadata(token common.Address) pairs.ERC20Token {
-
-	nodeUrl := config.NodeURL
+	cfg := config.GetConfig()
+	nodeUrl := cfg.NodeURL
 	// redisUrl := config.RedisURL
 
 	// // Check to see if the token metadata is in Redis
@@ -308,89 +517,6 @@ func getMetadata(token common.Address) pairs.ERC20Token {
 	}
 
 	return _token
-}
-
-// func pairHandler(c *gin.Context) {
-// 	// Use defer to recover from panics in this handler
-// 	defer func() {
-// 		if r := recover(); r != nil {
-// 			log.Printf("Recovered from panic in pairHandler: %v", r)
-// 			c.JSON(http.StatusInternalServerError, gin.H{
-// 				"error": "Internal server error occurred",
-// 			})
-// 		}
-// 	}()
-
-// 	tokenAAddress := c.Query("tokena")
-// 	if tokenAAddress == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Missing required parameter: tokena",
-// 		})
-// 		return
-// 	}
-	
-// 	tokenBAddress := c.Query("tokenb")
-// 	if tokenBAddress == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Missing required parameter: tokenb",
-// 		})
-// 		return
-// 	}
-	
-// 	// Add the amount parameter from query string with default value of 10000
-// 	amountStr := c.DefaultQuery("amount", "10000")
-	
-// 	// Convert the amount string to a big.Int
-// 	amount, success := new(big.Int).SetString(amountStr, 10)
-// 	if !success {
-// 		// Handle invalid amount parameter
-// 		c.JSON(http.StatusBadRequest, gin.H{
-// 			"error": "Invalid amount parameter",
-// 		})
-// 		return
-// 	}
-	
-// 	// Get option to return all quotes or just best
-// 	bestOnly := c.DefaultQuery("best", "true") == "true"
-
-// 	token0 := getMetadata(common.HexToAddress(tokenAAddress))
-// 	token1 := getMetadata(common.HexToAddress(tokenBAddress))
-
-// 	nodeUrl := config.NodeURL
-
-// 	quotes := uniswap.Quote(token0.Address, token1.Address, *amount, nodeUrl)
-	
-// 	if bestOnly && len(quotes) > 0 {
-// 		// Get the best quote only
-// 		bestQuote := uniswap.GetBestQuote(quotes)
-// 		c.JSON(http.StatusOK, gin.H{
-// 			"result": bestQuote,
-// 		})
-// 	} else {
-// 		// Return all quotes
-// 		c.JSON(http.StatusOK, gin.H{
-// 			"result": quotes,
-// 		})
-// 	}
-// }
-
-func test() {
-	quote1 := Quote{
-		TokenIn:   "USDC",
-		TokenOut:  "USDT",
-		AmountIn:  big.NewInt(1000000),
-		AmountOut: big.NewInt(999999),
-	}
-
-	quote2 := Quote{
-		TokenIn:   "USDC",
-		TokenOut:  "WBTC",
-		AmountIn:  big.NewInt(1000000),
-		AmountOut: big.NewInt(999999),
-	}
-
-	_distance := distance(quote1, quote2)
-	fmt.Printf("Distance: %f\n", _distance)
 }
 
 func distance(quote1, quote2 Quote) float64 {

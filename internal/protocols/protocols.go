@@ -18,8 +18,8 @@ type ProtocolConfig struct {
 var Protocols = map[string]ProtocolConfig{
 	"uniswapv3": {
 		Name:           "Uniswap V3",
-		FactoryAddress: common.HexToAddress("0x1F98431c8aD98523631AE4a59f267346ea31F984"),
-		RouterAddress:  common.HexToAddress("0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"),
+		FactoryAddress: common.HexToAddress("0x961235a9020b05c44df1026d956d1f4d78014276"),
+		RouterAddress:  common.HexToAddress("0x4c4eabd5fb1d1a7234a48692551eaecff8194ca7"), // monad
 		FeeTiers:       []uint64{500, 3000, 10000},
 		IsUniswapFork:  true,
 	},
@@ -37,6 +37,13 @@ var Protocols = map[string]ProtocolConfig{
 		FeeTiers:       []uint64{100, 500, 2500, 10000},
 		IsUniswapFork:  true,
 	},
+	// "kuru": {
+	// 	Name:           "Kuru",
+	// 	FactoryAddress: common.HexToAddress("0xc816865f172d640d93712C68a7E1F83F3fA63235"),
+	// 	RouterAddress:  common.HexToAddress("0xc816865f172d640d93712C68a7E1F83F3fA63235"),
+	// 	FeeTiers:       []uint64{100, 500, 2500, 10000},
+	// 	IsUniswapFork:  true,
+	// },
 	// Add more protocols as needed
 }
 
