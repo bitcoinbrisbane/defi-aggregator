@@ -17,7 +17,7 @@ import (
 
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
+	// "github.com/bitcoinbrisbane/defi-aggregator/internal/pairs"
 	"github.com/ethereum/go-ethereum/common"
 
 	// "github.com/ethereum/go-ethereum/node"
@@ -25,8 +25,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
-	"github.com/lmittmann/w3"
-	"github.com/lmittmann/w3/module/eth"
 )
 
 // TokenRequest defines the structure for the token post request
@@ -246,25 +244,6 @@ func tokenPostHandler(c *gin.Context) {
 	})
 }
 
-// func loadConfig() {
-// 	// Load .env file
-// 	err := godotenv.Load()
-// 	if err != nil {
-// 		log.Printf("Warning: .env file not found: %v", err)
-// 	}
-
-// 	// Initialize config with environment variables
-// 	config = Config{
-// 		Port:     getEnvWithDefault("PORT", "8080"),
-// 		RedisURL: getEnvWithDefault("REDIS_URL", "localhost:6379"),
-// 		NodeURL:  getEnvWithDefault("NODE_URL", "https://rpc-devnet.monadinfra.com/rpc/3fe540e310bbb6ef0b9f16cd23073b0a"),
-// 		RedisPassword: getEnvWithDefault("REDIS_PASSWORD", ""),
-// 		APIKey:      getEnvWithDefault("API_KEY", "your-api-key"),
-// 	}
-
-// 	log.Printf("Config loaded. Port: %s", config.Port)
-// }
-
 // getEnvWithDefault gets an environment variable or returns a default value
 func getEnvWithDefault(key, defaultValue string) string {
 	value := os.Getenv(key)
@@ -424,99 +403,6 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 			"result": result.BestRoute,
 		})
 	}
-}
-
-// func setupPairs() {
-// 	_tokenA := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-// 	_tokenB := common.HexToAddress("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
-// 	tokenA := pairs.ERC20Token{Address: _tokenA, Symbol: "USDC", Decimals: 6}
-// 	tokenB := pairs.ERC20Token{Address: _tokenB, Symbol: "WBTC", Decimals: 18}
-
-// 	redisUrl := config.RedisURL
-// 	pairHandler := pairs.NewPairHandler(redisUrl)
-
-// 	ctx := context.Background()
-
-// 	pairHandler.AddPair(tokenA, tokenB)
-
-// 	// Adding protocol pairs
-// 	pairHandler.AddProtocolPair(ctx, "UniswapV3_10000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-// 	pairHandler.AddProtocolPair(ctx, "UniswapV3_30000", "0xCBFB0745b8489973Bf7b334d54fdBd573Df7eF3c", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-// 	pairHandler.AddProtocolPair(ctx, "SushiSwap", "0x01", pairs.TokenPair{Token0: tokenA, Token1: tokenB})
-
-// 	// Retrieving protocol pairs
-// 	protocolPairs := pairHandler.GetProtocolPairs(tokenA.Address.String(), tokenB.Address.String())
-// 	for _, pp := range protocolPairs {
-// 		fmt.Printf("Protocol: %s, Contract: %s, Pair: %s-%s\n",
-// 			pp.ProtocolName, pp.ContractAddress, pp.Pair.Token0.Symbol, pp.Pair.Token1.Symbol)
-// 	}
-
-// 	// Finding protocols for a specific pair
-// 	protocolsForAB := pairHandler.FindProtocolsForPair(tokenA.Address.String(), tokenB.Address.String())
-// 	fmt.Printf("Protocols supporting %s-%s pair:\n", tokenA.Symbol, tokenB.Symbol)
-// 	for _, pp := range protocolsForAB {
-// 		fmt.Printf("- %s (Contract: %s)\n", pp.ProtocolName, pp.ContractAddress)
-// 	}
-// }
-
-func getMetadata(token common.Address) pairs.ERC20Token {
-	cfg := config.GetConfig()
-	nodeUrl := cfg.NodeURL
-	// redisUrl := config.RedisURL
-
-	// // Check to see if the token metadata is in Redis
-	// client := redis.NewClient(&redis.Options{
-	// 	Addr:     redisUrl,
-	// 	DB:       0,
-	// 	Password: "Test1234!",
-	// })
-
-	// // client.Set(context.Background(), token.String(), "metadata", 0)
-	// client.Get(context.Background(), token.String())
-
-	// return &PairHandler{
-	// 	redisClient:   client,
-	// 	Pairs:         make(map[string]TokenPair),
-	// 	ProtocolPairs: make(map[string][]ProtocolPair),
-	// }
-
-	client := w3.MustDial(nodeUrl)
-	defer client.Close()
-
-	var (
-		funcName     = w3.MustNewFunc("name()", "string")
-		funcSymbol   = w3.MustNewFunc("symbol()", "string")
-		funcDecimals = w3.MustNewFunc("decimals()", "uint8")
-	)
-
-	// fetch token details
-	var (
-		name     string
-		symbol   string
-		decimals uint8
-		// address common.Address
-	)
-
-	_token := pairs.ERC20Token{
-		Address: token,
-	}
-
-	if err := client.Call(
-		eth.CallFunc(token, funcName).Returns(&name),
-		eth.CallFunc(token, funcSymbol).Returns(&symbol),
-		eth.CallFunc(token, funcDecimals).Returns(&decimals),
-	); err != nil {
-		fmt.Printf("Failed to fetch token details: %v\n", err)
-
-		// Set the token metadata
-		// TODO: Probably a better way to handle this
-		_token.Name = name
-		_token.Symbol = symbol
-		_token.Decimals = decimals
-
-	}
-
-	return _token
 }
 
 func distance(quote1, quote2 Quote) float64 {
