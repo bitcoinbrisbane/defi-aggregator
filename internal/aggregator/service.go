@@ -123,7 +123,7 @@ func (s *Service) FindBestRoute(
 
 // getProtocolQuotes gets quotes from a specific protocol
 func (s *Service) getProtocolQuotes(
-	ctx context.Context,
+	_ context.Context,
 	protocol protocols.ProtocolConfig,
 	tokenIn, tokenOut common.Address,
 	amountIn *big.Int,

@@ -51,19 +51,6 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-// // Config holds all our environment configurations
-// // Update Config struct to include Redis password and API key
-// type Config struct {
-// 	Port          string
-// 	RedisURL      string
-// 	NodeURL       string
-// 	RedisPassword string
-// 	APIKey        string
-// }
-
-// Global config variable
-// var config Config
-
 // API Key middleware for simple authentication
 func apiKeyAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -271,6 +258,7 @@ func main() {
 	router.GET("/", helloHandler)
 	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
 	router.GET("/protocols", protocolsHandler)
+	router.GET("/token", tokenGetHandler)
 
 	// Protected routes - requires API key
 	protected := router.Group("/")
@@ -403,6 +391,96 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 			"result": result.BestRoute,
 		})
 	}
+}
+
+// tokenGetHandler handles the /token GET endpoint
+func tokenGetHandler(c *gin.Context) {
+	// Use defer to recover from panics
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in tokenGetHandler: %v", r)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error occurred",
+			})
+		}
+	}()
+	
+	// Get token address from query parameter
+	address := c.Query("address")
+	if address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing required parameter: address",
+		})
+		return
+	}
+	
+	// Validate Ethereum address
+	if !common.IsHexAddress(address) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid Ethereum address format",
+		})
+		return
+	}
+	
+	tokenAddress := common.HexToAddress(address)
+	
+	// Connect to Redis
+	redisClient, err := connectRedis()
+	if err != nil {
+		log.Printf("Failed to connect to Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to connect to database",
+		})
+		return
+	}
+	defer redisClient.Close()
+	
+	// Check if we have this token in Redis
+	ctx := context.Background()
+	cachedMetadata, err := getTokenMetadataFromRedis(ctx, redisClient, tokenAddress.String())
+	if err != nil {
+		log.Printf("Error checking Redis for token: %v", err)
+	}
+	
+	// If found in cache, return it
+	if cachedMetadata != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"source": "cache",
+			"token": cachedMetadata,
+		})
+		return
+	}
+	
+	// Not in cache, fetch from blockchain
+	cfg := config.GetConfig()
+	name, symbol, decimals, err := uniswap.GetTokenMetadata(tokenAddress, cfg.NodeURL)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Failed to fetch token metadata: %v", err),
+		})
+		return
+	}
+	
+	// Create metadata object
+	metadata := TokenMetadata{
+		Address:  tokenAddress.String(),
+		Name:     name,
+		Symbol:   symbol,
+		Decimals: decimals,
+	}
+	
+	// Save to Redis for future requests
+	err = saveTokenMetadata(ctx, redisClient, metadata)
+	if err != nil {
+		log.Printf("Failed to save token metadata to Redis: %v", err)
+		// Continue even if saving fails
+	}
+	
+	// Return the metadata
+	c.JSON(http.StatusOK, gin.H{
+		"source": "blockchain",
+		"token": metadata,
+	})
 }
 
 func distance(quote1, quote2 Quote) float64 {
