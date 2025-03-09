@@ -469,12 +469,12 @@ func tokenGetHandler(c *gin.Context) {
 		Decimals: decimals,
 	}
 	
-	// Save to Redis for future requests
-	err = saveTokenMetadata(ctx, redisClient, metadata)
-	if err != nil {
-		log.Printf("Failed to save token metadata to Redis: %v", err)
-		// Continue even if saving fails
-	}
+	// // Save to Redis for future requests
+	// err = saveTokenMetadata(ctx, redisClient, metadata)
+	// if err != nil {
+	// 	log.Printf("Failed to save token metadata to Redis: %v", err)
+	// 	// Continue even if saving fails
+	// }
 	
 	// Return the metadata
 	c.JSON(http.StatusOK, gin.H{

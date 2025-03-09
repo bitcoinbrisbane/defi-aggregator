@@ -8,10 +8,10 @@ import (
 	"github.com/lmittmann/w3/module/eth"
 )
 
-// TokenRequest defines the structure for the token post request
-type TokenRequest struct {
-	Address string `json:"address" binding:"required"`
-}
+// // TokenRequest defines the structure for the token post request
+// type TokenRequest struct {
+// 	Address string `json:"address" binding:"required"`
+// }
 
 // TokenMetadata represents the ERC20 token metadata
 type TokenMetadata struct {
