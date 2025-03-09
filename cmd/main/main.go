@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"math/big"
-	"os"
 	"time"
 
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/aggregator"
@@ -55,7 +54,7 @@ type Response struct {
 func apiKeyAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("x-api-key")
-		expectedApiKey := getEnvWithDefault("API_KEY", "default-api-key")
+		expectedApiKey := config.GetEnvWithDefault("API_KEY", "default-api-key")
 		
 		if apiKey == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -77,8 +76,8 @@ func apiKeyAuth() gin.HandlerFunc {
 
 // connectRedis establishes a connection to Redis
 func connectRedis() (*redis.Client, error) {
-	redisURL := getEnvWithDefault("REDIS_URL", "localhost:6379")
-	redisPassword := getEnvWithDefault("REDIS_PASSWORD", "")
+	redisURL := config.GetEnvWithDefault("REDIS_URL", "localhost:6379")
+	redisPassword := config.GetEnvWithDefault("REDIS_PASSWORD", "Test1234")
 	redisDB := 0
 	
 	client := redis.NewClient(&redis.Options{
@@ -231,14 +230,14 @@ func tokenPostHandler(c *gin.Context) {
 	})
 }
 
-// getEnvWithDefault gets an environment variable or returns a default value
-func getEnvWithDefault(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
+// // getEnvWithDefault gets an environment variable or returns a default value
+// func getEnvWithDefault(key, defaultValue string) string {
+// 	value := os.Getenv(key)
+// 	if value == "" {
+// 		return defaultValue
+// 	}
+// 	return value
+// }
 
 func main() {
 	// Create a default gin router

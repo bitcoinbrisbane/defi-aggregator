@@ -13,13 +13,13 @@ import (
 // 	Address string `json:"address" binding:"required"`
 // }
 
-// TokenMetadata represents the ERC20 token metadata
-type TokenMetadata struct {
-	Address  string `json:"address"`
-	Name     string `json:"name"`
-	Symbol   string `json:"symbol"`
-	Decimals uint8  `json:"decimals"`
-}
+// // TokenMetadata represents the ERC20 token metadata
+// type TokenMetadata struct {
+// 	Address  string `json:"address"`
+// 	Name     string `json:"name"`
+// 	Symbol   string `json:"symbol"`
+// 	Decimals uint8  `json:"decimals"`
+// }
 
 // Function signatures for Uniswap interactions
 var (
