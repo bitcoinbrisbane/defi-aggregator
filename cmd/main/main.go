@@ -230,15 +230,6 @@ func tokenPostHandler(c *gin.Context) {
 	})
 }
 
-// // getEnvWithDefault gets an environment variable or returns a default value
-// func getEnvWithDefault(key, defaultValue string) string {
-// 	value := os.Getenv(key)
-// 	if value == "" {
-// 		return defaultValue
-// 	}
-// 	return value
-// }
-
 func main() {
 	// Create a default gin router
 	router := gin.Default()

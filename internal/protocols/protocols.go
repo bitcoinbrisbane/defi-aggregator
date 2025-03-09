@@ -37,13 +37,13 @@ var Protocols = map[string]ProtocolConfig{
 		FeeTiers:       []uint64{100, 500, 2500, 10000},
 		IsUniswapFork:  true,
 	},
-	// "kuru": {
-	// 	Name:           "Kuru",
-	// 	FactoryAddress: common.HexToAddress("0xc816865f172d640d93712C68a7E1F83F3fA63235"),
-	// 	RouterAddress:  common.HexToAddress("0xc816865f172d640d93712C68a7E1F83F3fA63235"),
-	// 	FeeTiers:       []uint64{100, 500, 2500, 10000},
-	// 	IsUniswapFork:  true,
-	// },
+	"tayaswap": {
+		Name:           "Tayaswap V3",
+		FactoryAddress: common.HexToAddress("0xf3fd5503fb2bb5f5a7ae713e621ac5c50f191fb3"),
+		RouterAddress:  common.HexToAddress("0x4ba4be2fb69e2aa059a551ce5d609ef5818dd72f"),
+		FeeTiers:       []uint64{100, 500, 2500, 10000},
+		IsUniswapFork:  true,
+	},
 	// Add more protocols as needed
 }
 
