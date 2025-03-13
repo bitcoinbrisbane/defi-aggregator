@@ -14,6 +14,7 @@ import (
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/t"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
+	"github.com/bitcoinbrisbane/defi-aggregator/intneral/token" // Import the new types package
 
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
@@ -27,10 +28,10 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// TokenRequest defines the structure for the token post request
-type TokenRequest struct {
-	Address string `json:"address" binding:"required"`
-}
+// // TokenRequest defines the structure for the token post request
+// type TokenRequest struct {
+// 	Address string `json:"address" binding:"required"`
+// }
 
 // TokenMetadata represents the ERC20 token metadata
 type TokenMetadata struct {
