@@ -11,6 +11,7 @@ import (
 
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/aggregator"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/t"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
 
@@ -322,7 +323,7 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 	tokenB := common.HexToAddress(tokenBAddress)
 	
 	// Get token metadata
-	tokenAName, tokenASymbol, tokenADecimals, err := uniswap.GetTokenMetadata(tokenA, cfg.NodeURL)
+	tokenAName, tokenASymbol, tokenADecimals, err := tokens.GetTokenMetadata(tokenA, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to get tokenA metadata: %v", err),
