@@ -14,7 +14,7 @@ import (
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/t"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
-	"github.com/bitcoinbrisbane/defi-aggregator/intneral/token" // Import the new types package
+	// "github.com/bitcoinbrisbane/defi-aggregator/internal/t" // Import the new types package
 
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
@@ -29,9 +29,9 @@ import (
 )
 
 // // TokenRequest defines the structure for the token post request
-// type TokenRequest struct {
-// 	Address string `json:"address" binding:"required"`
-// }
+type TokenRequest struct {
+	Address string `json:"address" binding:"required"`
+}
 
 // TokenMetadata represents the ERC20 token metadata
 type TokenMetadata struct {
@@ -332,7 +332,7 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 		return
 	}
 	
-	tokenBName, tokenBSymbol, tokenBDecimals, err := uniswap.GetTokenMetadata(tokenB, cfg.NodeURL)
+	tokenBName, tokenBSymbol, tokenBDecimals, err := tokens.GetTokenMetadata(tokenB, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to get tokenB metadata: %v", err),

@@ -31,8 +31,8 @@ func InitConfig() Config {
 	AppConfig = Config{
 		Port:          GetEnvWithDefault("PORT", "8080"),
 		RedisURL:      GetEnvWithDefault("REDIS_URL", "localhost:6379"),
-		NodeURL:       GetEnvWithDefault("NODE_URL", "https://rpc-devnet.monadinfra.com/rpc/3fe540e310bbb6ef0b9f16cd23073b0a"),
-		// NodeURL:       GetEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/fmiJslJk8E60f0Ni9QLq5nsnjm-lUzn1"),
+		NodeURL:       GetEnvWithDefault("NODE_URL", "https://testnet-rpc.monad.xyz"),
+		// NodeURL:       GetEnvWithDefault("NODE_URL", "https://mainnet.infura.io/v3/59c1f1aec50c40a19a5e9fa5fa3c843e"),
 		RedisPassword: GetEnvWithDefault("REDIS_PASSWORD", "Test1234"),
 		APIKey:        GetEnvWithDefault("API_KEY", "your-api-key"),
 	}
