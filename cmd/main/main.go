@@ -29,9 +29,9 @@ import (
 )
 
 // // TokenRequest defines the structure for the token post request
-// type TokenRequest struct {
-// 	Address string `json:"address" binding:"required"`
-// }
+type TokenRequest struct {
+	Address string `json:"address" binding:"required"`
+}
 
 // TokenMetadata represents the ERC20 token metadata
 type TokenMetadata struct {
@@ -332,7 +332,7 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 		return
 	}
 	
-	tokenBName, tokenBSymbol, tokenBDecimals, err := uniswap.GetTokenMetadata(tokenB, cfg.NodeURL)
+	tokenBName, tokenBSymbol, tokenBDecimals, err := tokens.GetTokenMetadata(tokenB, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to get tokenB metadata: %v", err),
