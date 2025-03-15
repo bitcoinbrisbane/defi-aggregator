@@ -14,7 +14,7 @@ import (
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/t"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
-	"github.com/bitcoinbrisbane/defi-aggregator/intneral/token" // Import the new types package
+	// "github.com/bitcoinbrisbane/defi-aggregator/internal/t" // Import the new types package
 
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	// "github.com/bitcoinbrisbane/defi-aggregator/internal/clients/curvefi"
