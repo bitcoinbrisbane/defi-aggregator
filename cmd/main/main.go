@@ -79,7 +79,7 @@ func apiKeyAuth() gin.HandlerFunc {
 // connectRedis establishes a connection to Redis
 func connectRedis() (*redis.Client, error) {
 	redisURL := config.GetEnvWithDefault("REDIS_URL", "localhost:6379")
-	redisPassword := config.GetEnvWithDefault("REDIS_PASSWORD", "Test1234")
+	redisPassword := config.GetEnvWithDefault("REDIS_PASSWORD", "Test1234!")
 	redisDB := 0
 	
 	client := redis.NewClient(&redis.Options{
@@ -445,7 +445,7 @@ func tokenGetHandler(c *gin.Context) {
 	
 	// Not in cache, fetch from blockchain
 	cfg := config.GetConfig()
-	name, symbol, decimals, err := uniswap.GetTokenMetadata(tokenAddress, cfg.NodeURL)
+	name, symbol, decimals, err := tokens.GetTokenMetadata(tokenAddress, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to fetch token metadata: %v", err),
