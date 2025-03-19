@@ -1,0 +1,1 @@
+curl --location 'http://localhost:8080/token?address=0x88b8E2161DEDC77EF4ab7585569D2415a1C1055D' # monad
