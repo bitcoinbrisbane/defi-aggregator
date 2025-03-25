@@ -26,7 +26,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	// docs "github.com/bitcoinbrisbane/defi-aggregator/docs"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+    
+    // _ "github.com/bitcoinbrisbane/defi-aggregator/docs"
 )
+
 
 // // TokenRequest defines the structure for the token post request
 type TokenRequest struct {
@@ -247,7 +253,7 @@ func main() {
 	aggregatorService := aggregator.NewService(cfg.NodeURL)
 
 	// Add routes
-	router.GET("/", helloHandler)
+	router.GET("/", helloHandler, ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
 	router.GET("/protocols", protocolsHandler)
 	router.GET("/token", tokenGetHandler)
@@ -259,10 +265,18 @@ func main() {
 		protected.POST("/token", tokenPostHandler)
 	}
 
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+
 	// Start the server
 	router.Run(":" + cfg.Port)
 }
 
+// @BasePath /api/v1
+
+// Defi godoc
+// @Summary ping example
+// @Success 200 {string} Helloworld
+// @Router / [get]
 func helloHandler(c *gin.Context) {
 	response := Response{
 		Message: "Hello, World!",
