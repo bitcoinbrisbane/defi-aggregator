@@ -256,7 +256,7 @@ func main() {
 	router.GET("/", helloHandler, ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
 	router.GET("/protocols", protocolsHandler)
-	router.GET("/token", tokenGetHandler)
+	router.GET("/token", tokenGetHandler, ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// Protected routes - requires API key
 	protected := router.Group("/")
@@ -399,7 +399,10 @@ func pairHandler(c *gin.Context, aggregatorService *aggregator.Service) {
 	}
 }
 
-// tokenGetHandler handles the /token GET endpoint
+// Defi godoc
+// @Summary ping example
+// @Success 200 {string} Get token metadata
+// @Router /token [get]
 func tokenGetHandler(c *gin.Context) {
 	// Use defer to recover from panics
 	defer func() {
