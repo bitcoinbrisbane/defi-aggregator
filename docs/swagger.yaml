@@ -1,4 +1,21 @@
+basePath: /api/v1
 info:
   contact: {}
-paths: {}
+paths:
+  /:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: ping example
+  /token:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: ping example
 swagger: "2.0"

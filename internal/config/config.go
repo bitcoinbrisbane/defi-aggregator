@@ -32,7 +32,6 @@ func InitConfig() Config {
 		Port:          GetEnvWithDefault("PORT", "8080"),
 		RedisURL:      GetEnvWithDefault("REDIS_URL", "localhost:6379"),
 		NodeURL:       GetEnvWithDefault("NODE_URL", "https://testnet-rpc.monad.xyz/"),
-		// NodeURL:       GetEnvWithDefault("NODE_URL", "https://eth-mainnet.g.alchemy.com/v2/fmiJslJk8E60f0Ni9QLq5nsnjm-lUzn1"),
 		RedisPassword: GetEnvWithDefault("REDIS_PASSWORD", "Test1234!"),
 		APIKey:        GetEnvWithDefault("API_KEY", "your-api-key"),
 	}

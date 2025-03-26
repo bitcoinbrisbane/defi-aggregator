@@ -257,6 +257,9 @@ func main() {
 	router.GET("/pairs", func(c *gin.Context) { pairHandler(c, aggregatorService) })
 	router.GET("/protocols", protocolsHandler)
 	router.GET("/token", tokenGetHandler, ginSwagger.WrapHandler(swaggerfiles.Handler))
+	// router.GET("/swagger/doc.json", func(c *gin.Context) {
+	// 	c.File("./docs/swagger.json")
+	// })
 
 	// Protected routes - requires API key
 	protected := router.Group("/")
@@ -265,7 +268,8 @@ func main() {
 		protected.POST("/token", tokenPostHandler)
 	}
 
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	url := ginSwagger.URL("http://localhost:8080/swagger/doc.json") // The URL pointing to API definition
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler, url))
 
 	// Start the server
 	router.Run(":" + cfg.Port)

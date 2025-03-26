@@ -1,0 +1,1 @@
+curl --location 'http://localhost:8080/token?address=0x0F0BDEbF0F83cD1EE3974779Bcb7315f9808c714'
