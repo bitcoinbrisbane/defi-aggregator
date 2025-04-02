@@ -7,7 +7,7 @@ The DeFi Aggregator is a service that allows users to view and compare DeFi proj
 ## Base URL
 
 ```
-http://localhost:8080
+https://api.gwei.exchange
 ```
 
 ## Authentication
