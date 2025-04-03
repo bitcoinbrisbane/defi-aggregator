@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/aggregator"
-	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/t"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/config" // Import the new config package
@@ -208,7 +207,7 @@ func tokenPostHandler(c *gin.Context) {
 	
 	// Fetch token metadata from the blockchain
 	cfg := config.GetConfig()
-	name, symbol, decimals, err := uniswap.GetTokenMetadata(tokenAddress, cfg.NodeURL)
+	name, symbol, decimals, err := tokens.GetTokenMetadata(tokenAddress, cfg.NodeURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": fmt.Sprintf("Failed to fetch token metadata: %v", err),

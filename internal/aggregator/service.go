@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitcoinbrisbane/defi-aggregator/internal/utils"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/clients/uniswap"
 	"github.com/bitcoinbrisbane/defi-aggregator/internal/protocols"
 	"github.com/ethereum/go-ethereum/common"
@@ -163,8 +164,8 @@ func (s *Service) getProtocolQuotes(
 		}
 		
 		// Convert amount out to human-readable format
-		amountOutStr := uniswap.FromWei(amountOut, tokenOutDecimals)
-		amountInStr := uniswap.FromWei(amountIn, tokenInDecimals)
+		amountOutStr := utils.FromWei(amountOut, tokenOutDecimals)
+		amountInStr := utils.FromWei(amountIn, tokenInDecimals)
 		
 		// Parse the output amount as a big.Float for sorting
 		amountOutFloat, _ := new(big.Float).SetString(amountOutStr)
