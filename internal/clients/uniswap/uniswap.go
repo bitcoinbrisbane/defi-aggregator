@@ -176,15 +176,15 @@ func GetTokenMetadata(tokenAddress common.Address, nodeURL string) (string, stri
 // 	return intValue, nil
 // }
 
-// splitDecimal splits a decimal string into integer and fractional parts
-func splitDecimal(s string) []string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '.' {
-			return []string{s[:i], s[i+1:]}
-		}
-	}
-	return []string{s}
-}
+// // splitDecimal splits a decimal string into integer and fractional parts
+// func splitDecimal(s string) []string {
+// 	for i := 0; i < len(s); i++ {
+// 		if s[i] == '.' {
+// 			return []string{s[:i], s[i+1:]}
+// 		}
+// 	}
+// 	return []string{s}
+// }
 
 // GetAllQuotes gets quotes from all fee tiers for a token pair
 func GetAllQuotes(

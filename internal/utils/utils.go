@@ -78,3 +78,13 @@ func ToWei(amount string, decimals uint8) (*big.Int, error) {
 	
 	return intValue, nil
 }
+
+// splitDecimal splits a decimal string into integer and fractional parts
+func splitDecimal(s string) []string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '.' {
+			return []string{s[:i], s[i+1:]}
+		}
+	}
+	return []string{s}
+}
