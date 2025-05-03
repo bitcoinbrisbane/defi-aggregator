@@ -29,7 +29,7 @@ contract Aggregator is Ownable {
     DexInfo[] public dexRegistry;
 
     constructor() Ownable(msg.sender) {
-        fee = 3000;
+        fee = 2000;
     }
 
     /**

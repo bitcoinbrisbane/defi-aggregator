@@ -1,4 +1,15 @@
 {
+  "name": "contracts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "hh:build": "hardhat compile",
+    "hh:compile": "hardhat compile",
+    "hh:test": "hardhat test",
+    "hh:node": "npx hardhat node",
+    "hh:deploy:ag": "npx hardhat ignition deploy ./ignition/modules/Aggregator.ts --network monad --verify"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",
@@ -22,6 +33,7 @@
     "typescript": ">=4.5.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.3.0"
+    "@openzeppelin/contracts": "^5.3.0",
+    "dotenv": "^16.5.0"
   }
 }
