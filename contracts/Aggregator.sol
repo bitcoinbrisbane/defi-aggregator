@@ -115,10 +115,10 @@ contract Aggregator is Ownable {
      * @param _tokenIn Address of the input token
      * @param _tokenOut Address of the output token
      * @param _amountIn Amount of input token to swap
-     * @param _fee Fee tier to use for the swap (3000 = 0.3%)
      * @return bestDexIndex Index of the best DEX
      * @return bestQuoterAddress Address of the best DEX's Quoter contract
      * @return bestAmountOut Amount of output token from the best DEX
+     * @return fee Fee tier used for the swap
      */
     function findBestRoute(
         address _tokenIn,
@@ -127,7 +127,8 @@ contract Aggregator is Ownable {
     ) public view returns (
         uint256 bestDexIndex,
         address bestQuoterAddress,
-        uint256 bestAmountOut
+        uint256 bestAmountOut,
+        uint24 fee
     ) {
         require(_tokenIn != address(0), "Invalid tokenIn");
         require(_tokenOut != address(0), "Invalid tokenOut");
@@ -142,12 +143,12 @@ contract Aggregator is Ownable {
             
             for (uint256 j = 0; j < fees.length; j++) {
                 IQuoter quoter = IQuoter(dexRegistry[i].quoterAddress);
-                uint24 _fee = fees[j];
+                uint24 fee = fees[j];
                 
                 try quoter.quoteExactInputSingle(
                     _tokenIn,
                     _tokenOut,
-                    _fee,
+                    fee,
                     _amountIn,
                     0 // sqrtPriceLimitX96 - set to 0 for no price limit
                 ) returns (uint256 amountOut) {
@@ -187,7 +188,7 @@ contract Aggregator is Ownable {
         uint256 amountOut
     ) {
         (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut) = 
-            findBestRoute(_tokenIn, _tokenOut, _amountIn, _fee);
+            findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         dexName = dexRegistry[bestDexIndex].name;
         quoterAddress = bestQuoterAddress;
@@ -215,7 +216,7 @@ contract Aggregator is Ownable {
         require(_recipient != address(0), "Invalid recipient");
         
         (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut) = 
-            findBestRoute(_tokenIn, _tokenOut, _amountIn, _fee);
+            findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         require(bestAmountOut >= _amountOutMinimum, "Insufficient output amount");
         
@@ -247,6 +248,11 @@ contract Aggregator is Ownable {
             bestQuoterAddress,
             amountOut
         );
+    }
+
+    function claimFees() external onlyOwner {
+        // Implement fee claiming logic here
+        // This could involve transferring accumulated fees to the owner's address
     }
     
     /**

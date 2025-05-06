@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
 			accounts: PK ? [PK] : [],
 		},
 	},
-	solidity: "0.8.24",
+	solidity: "0.8.27",
 	paths: {
 		sources: "./contracts",
 		tests: "./test",
