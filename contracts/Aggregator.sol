@@ -22,14 +22,14 @@ contract Aggregator is Ownable {
     // private uint256 constant MAX_FEE = 3000; // 0.3% fee
     // private uint256 constant MIN_FEE = 500; // 0.05% fee
     // private uint256 constant DEFAULT_FEE = 1000; // 0.1% fee
-    uint256 private fee;
+    uint256 private _fee;
     uint24[] public fees = [500, 3000, 10000]; // Fee tiers for Uniswap V3
 
     // Array to store all DEX information
     DexInfo[] public dexRegistry;
 
     constructor() Ownable(msg.sender) {
-        fee = 2000;
+        _fee = 2000;
     }
 
     /**
