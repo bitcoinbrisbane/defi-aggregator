@@ -23,6 +23,14 @@ var Protocols = map[string]ProtocolConfig{
 		FeeTiers:       []uint64{500, 3000, 10000},
 		IsUniswapFork:  true,
 	},
+	"uniswapv2": {
+		Name:           "Uniswap V2",
+		FactoryAddress: common.HexToAddress("0x961235a9020b05c44df1026d956d1f4d78014276"), // 
+		RouterAddress:  common.HexToAddress("0x3ae6d8a282d67893e17aa70ebffb33ee5aa65893"), //
+		FeeTiers:       []uint64{30}, // Uniswap V2 has a fixed 0.3% fee (represented as 30 basis points here)
+		IsUniswapFork:  false,
+		// IsUniswapV2:    true,
+	},
 	"sushiswapv3": {
 		Name:           "Sushiswap V3",
 		FactoryAddress: common.HexToAddress("0xBACeb8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F"),
@@ -50,6 +58,14 @@ var Protocols = map[string]ProtocolConfig{
 		RouterAddress:  common.HexToAddress("0x4ba4be2fb69e2aa059a551ce5d609ef5818dd72f"),
 		FeeTiers:       []uint64{100, 500, 2500, 10000},
 		IsUniswapFork:  true,
+	},
+	"naddotfun": {
+		Name:           "Naddotfun", // uni v2 fork
+		FactoryAddress: common.HexToAddress("0x13eD0D5e1567684D964469cCbA8A977CDA580827"), // 
+		RouterAddress:  common.HexToAddress("0x3ae6d8a282d67893e17aa70ebffb33ee5aa65893"), //
+		FeeTiers:       []uint64{30}, // Uniswap V2 has a fixed 0.3% fee (represented as 30 basis points here)
+		IsUniswapFork:  false,
+		// IsUniswapV2:    true,
 	},
 	// Add more protocols as needed
 }

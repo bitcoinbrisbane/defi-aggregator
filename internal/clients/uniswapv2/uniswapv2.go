@@ -2,7 +2,6 @@ package uniswapv2
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
