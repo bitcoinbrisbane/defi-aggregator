@@ -22,14 +22,14 @@ contract Aggregator is Ownable {
     // private uint256 constant MAX_FEE = 3000; // 0.3% fee
     // private uint256 constant MIN_FEE = 500; // 0.05% fee
     // private uint256 constant DEFAULT_FEE = 1000; // 0.1% fee
-    uint256 private _fee;
+    uint256 private immutable protocolFee;
     uint24[] public fees = [500, 3000, 10000]; // Fee tiers for Uniswap V3
 
     // Array to store all DEX information
     DexInfo[] public dexRegistry;
 
     constructor() Ownable(msg.sender) {
-        _fee = 2000;
+        protocolFee = 2000;
     }
 
     /**
@@ -143,7 +143,7 @@ contract Aggregator is Ownable {
             
             for (uint256 j = 0; j < fees.length; j++) {
                 IQuoter quoter = IQuoter(dexRegistry[i].quoterAddress);
-                uint24 fee = fees[j];
+                fee = fees[j];
                 
                 try quoter.quoteExactInputSingle(
                     _tokenIn,
@@ -172,20 +172,20 @@ contract Aggregator is Ownable {
      * @param _tokenIn Address of the input token
      * @param _tokenOut Address of the output token
      * @param _amountIn Amount of input token to swap
-     * @param _fee Fee tier to use for the swap
      * @return dexName Name of the best DEX
      * @return quoterAddress Address of the best DEX's Quoter contract
      * @return amountOut Amount of output token from the best DEX
+     * @return fee Fee tier used for the swap
      */
     function getBestQuote(
         address _tokenIn,
         address _tokenOut,
-        uint256 _amountIn,
-        uint24 _fee
+        uint256 _amountIn
     ) external view returns (
         string memory dexName,
         address quoterAddress,
-        uint256 amountOut
+        uint256 amountOut,
+        uint24 fee
     ) {
         (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut) = 
             findBestRoute(_tokenIn, _tokenOut, _amountIn);
@@ -250,9 +250,18 @@ contract Aggregator is Ownable {
         );
     }
 
-    function claimFees() external onlyOwner {
-        // Implement fee claiming logic here
-        // This could involve transferring accumulated fees to the owner's address
+    function claimFees(address token) external onlyOwner {
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        require(amount > 0, "No fees to claim");
+
+        IERC20(token).transfer(msg.sender, amount);
+        emit FeesClaimed(token, amount);
+    }
+
+    function fee(address token) external view returns (uint256) {
+        // Implement fee calculation logic here
+        // This could involve checking the balance of the token in this contract
+        return IERC20(token).balanceOf(address(this));
     }
     
     /**
@@ -269,7 +278,8 @@ contract Aggregator is Ownable {
     }
 
     // Events
-    event DexAdded(string name, address quoterAddress, uint256 index);
-    event DexUpdated(uint256 index, string name, address quoterAddress, bool enabled);
     event BestRouteFound(string dexName, address dex, uint256 amountOut);
+    event DexAdded(string name, address indexed quoterAddress, uint256 index);
+    event DexUpdated(uint256 index, string name, address indexed quoterAddress, bool enabled);
+    event FeesClaimed(address indexed token, uint256 amount);
 }
