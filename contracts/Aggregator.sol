@@ -200,7 +200,6 @@ contract Aggregator is Ownable {
      * @param _tokenIn Address of the input token
      * @param _tokenOut Address of the output token
      * @param _amountIn Amount of input token to swap
-     * @param _fee Fee tier to use for the swap
      * @param _amountOutMinimum Minimum amount of output token to receive
      * @param _recipient Address to receive the output tokens
      * @return amountOut Amount of output token received
@@ -209,13 +208,12 @@ contract Aggregator is Ownable {
         address _tokenIn,
         address _tokenOut,
         uint256 _amountIn,
-        uint24 _fee,
         uint256 _amountOutMinimum,
         address _recipient
     ) external returns (uint256 amountOut) {
         require(_recipient != address(0), "Invalid recipient");
         
-        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut) = 
+        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOu, uint24 fee) = 
             findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         require(bestAmountOut >= _amountOutMinimum, "Insufficient output amount");
@@ -233,7 +231,7 @@ contract Aggregator is Ownable {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: _tokenIn,
             tokenOut: _tokenOut,
-            fee: _fee,
+            fee: fee,
             recipient: _recipient,
             deadline: block.timestamp + 15 minutes,
             amountIn: _amountIn,
