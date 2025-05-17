@@ -16,6 +16,7 @@ contract Aggregator is Ownable {
     struct DexInfo {
         string name;
         address quoterAddress;
+        address routerAddress;
         bool enabled;
     }
 
@@ -36,8 +37,9 @@ contract Aggregator is Ownable {
      * @dev Add a new DEX to the registry
      * @param _name Name of the DEX
      * @param _quoterAddress Address of the DEX's Quoter contract
+     * @param _routerAddress Address of the DEX's Router contract
      */
-    function addDex(string memory _name, address _quoterAddress) external onlyOwner {
+    function addDex(string memory _name, address _quoterAddress, address _routerAddress) external onlyOwner {
         require(_quoterAddress != address(0), "Invalid quoter address");
         
         uint256 index = dexRegistry.length;
@@ -45,6 +47,7 @@ contract Aggregator is Ownable {
         dexRegistry.push(DexInfo({
             name: _name,
             quoterAddress: _quoterAddress,
+            routerAddress: _routerAddress,
             enabled: true
         }));
         
@@ -118,7 +121,7 @@ contract Aggregator is Ownable {
      * @return bestDexIndex Index of the best DEX
      * @return bestQuoterAddress Address of the best DEX's Quoter contract
      * @return bestAmountOut Amount of output token from the best DEX
-     * @return fee Fee tier used for the swap
+     * @return bestFee Fee tier used for the swap
      */
     function findBestRoute(
         address _tokenIn,
@@ -128,7 +131,7 @@ contract Aggregator is Ownable {
         uint256 bestDexIndex,
         address bestQuoterAddress,
         uint256 bestAmountOut,
-        uint24 fee
+        uint24 bestFee
     ) {
         require(_tokenIn != address(0), "Invalid tokenIn");
         require(_tokenOut != address(0), "Invalid tokenOut");
@@ -143,12 +146,12 @@ contract Aggregator is Ownable {
             
             for (uint256 j = 0; j < fees.length; j++) {
                 IQuoter quoter = IQuoter(dexRegistry[i].quoterAddress);
-                fee = fees[j];
+                bestFee = fees[j];
                 
                 try quoter.quoteExactInputSingle(
                     _tokenIn,
                     _tokenOut,
-                    fee,
+                    bestFee,
                     _amountIn,
                     0 // sqrtPriceLimitX96 - set to 0 for no price limit
                 ) returns (uint256 amountOut) {
@@ -187,12 +190,13 @@ contract Aggregator is Ownable {
         uint256 amountOut,
         uint24 fee
     ) {
-        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut) = 
+        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 bestFee) = 
             findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         dexName = dexRegistry[bestDexIndex].name;
         quoterAddress = bestQuoterAddress;
         amountOut = bestAmountOut;
+        fee = bestFee;
     }
 
     /**
@@ -213,7 +217,7 @@ contract Aggregator is Ownable {
     ) external returns (uint256 amountOut) {
         require(_recipient != address(0), "Invalid recipient");
         
-        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOu, uint24 fee) = 
+        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 fee) = 
             findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         require(bestAmountOut >= _amountOutMinimum, "Insufficient output amount");
@@ -224,8 +228,8 @@ contract Aggregator is Ownable {
         // Approve the router to spend the input tokens
         IERC20(_tokenIn).approve(bestQuoterAddress, _amountIn);
         
-        address routerAddress = getRouterFromQuoter(bestQuoterAddress);
-        ISwapRouter router = ISwapRouter(routerAddress);
+        // address routerAddress = getRouterFromQuoter(bestQuoterAddress);
+        ISwapRouter router = ISwapRouter(bestQuoterAddress);
         
         // Execute the swap
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -256,24 +260,24 @@ contract Aggregator is Ownable {
         emit FeesClaimed(token, amount);
     }
 
-    function fee(address token) external view returns (uint256) {
-        // Implement fee calculation logic here
-        // This could involve checking the balance of the token in this contract
-        return IERC20(token).balanceOf(address(this));
-    }
+    // function fee(address token) external view returns (uint256) {
+    //     // Implement fee calculation logic here
+    //     // This could involve checking the balance of the token in this contract
+    //     return IERC20(token).balanceOf(address(this));
+    // }
     
-    /**
-     * @dev Get the router address from a quoter address
-     * @param _quoterAddress Address of the quoter
-     * @return Address of the corresponding router
-     * @notice This is a placeholder function - in a real implementation, you would need to
-     * either store router addresses alongside quoter addresses or have a way to derive one from the other
-     */
-    function getRouterFromQuoter(address _quoterAddress) internal pure returns (address) {
-        // This is a placeholder - in reality, you would need to implement this properly
-        // For example, you might have a mapping from quoter addresses to router addresses
-        return address(0); // Replace with actual implementation
-    }
+    // /**
+    //  * @dev Get the router address from a quoter address
+    //  * @param _quoterAddress Address of the quoter
+    //  * @return Address of the corresponding router
+    //  * @notice This is a placeholder function - in a real implementation, you would need to
+    //  * either store router addresses alongside quoter addresses or have a way to derive one from the other
+    //  */
+    // function getRouterFromQuoter(address _quoterAddress) internal pure returns (address) {
+    //     // This is a placeholder - in reality, you would need to implement this properly
+    //     // For example, you might have a mapping from quoter addresses to router addresses
+    //     return address(0); // Replace with actual implementation
+    // }
 
     // Events
     event BestRouteFound(string dexName, address dex, uint256 amountOut);
