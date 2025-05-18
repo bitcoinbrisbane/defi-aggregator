@@ -82,6 +82,23 @@ contract Aggregator is Ownable {
      * @dev Toggle the enabled status of a DEX
      * @param _index Index of the DEX in the registry
      */
+    function toggleEnabled(uint256 _index) external onlyOwner {
+        require(_index < dexRegistry.length, "Index out of bounds");
+        
+        dexRegistry[_index].enabled = !dexRegistry[_index].enabled;
+        
+        emit DexUpdated(
+            _index, 
+            dexRegistry[_index].name, 
+            dexRegistry[_index].quoterAddress, 
+            dexRegistry[_index].enabled
+        );
+    }
+
+    /**
+     * @dev Toggle the enabled status of a DEX
+     * @param _index Index of the DEX in the registry
+     */
     function toggleDexStatus(uint256 _index) external onlyOwner {
         require(_index < dexRegistry.length, "Index out of bounds");
         
@@ -127,7 +144,7 @@ contract Aggregator is Ownable {
         address _tokenIn,
         address _tokenOut,
         uint256 _amountIn
-    ) public view returns (
+    ) public returns (
         uint256 bestDexIndex,
         address bestQuoterAddress,
         uint256 bestAmountOut,
@@ -178,25 +195,24 @@ contract Aggregator is Ownable {
      * @return dexName Name of the best DEX
      * @return quoterAddress Address of the best DEX's Quoter contract
      * @return amountOut Amount of output token from the best DEX
-     * @return fee Fee tier used for the swap
+     * @return bestFee Fee tier used for the swap
      */
     function getBestQuote(
         address _tokenIn,
         address _tokenOut,
         uint256 _amountIn
-    ) external view returns (
+    ) external returns (
         string memory dexName,
         address quoterAddress,
         uint256 amountOut,
-        uint24 fee
+        uint24 bestFee
     ) {
-        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 bestFee) = 
-            findBestRoute(_tokenIn, _tokenOut, _amountIn);
+        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 fee) = findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         dexName = dexRegistry[bestDexIndex].name;
         quoterAddress = bestQuoterAddress;
         amountOut = bestAmountOut;
-        fee = bestFee;
+        bestFee = fee;
     }
 
     /**
@@ -217,7 +233,7 @@ contract Aggregator is Ownable {
     ) external returns (uint256 amountOut) {
         require(_recipient != address(0), "Invalid recipient");
         
-        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 fee) = 
+        (uint256 bestDexIndex, address bestQuoterAddress, uint256 bestAmountOut, uint24 bestFee) = 
             findBestRoute(_tokenIn, _tokenOut, _amountIn);
         
         require(bestAmountOut >= _amountOutMinimum, "Insufficient output amount");
@@ -235,7 +251,7 @@ contract Aggregator is Ownable {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: _tokenIn,
             tokenOut: _tokenOut,
-            fee: fee,
+            fee: bestFee,
             recipient: _recipient,
             deadline: block.timestamp + 15 minutes,
             amountIn: _amountIn,
