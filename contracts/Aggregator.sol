@@ -241,11 +241,17 @@ contract Aggregator is Ownable {
         // We need to transfer the input tokens from the user to this contract
         IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
         
-        // Approve the router to spend the input tokens
-        IERC20(_tokenIn).approve(bestQuoterAddress, _amountIn);
-        
         // address routerAddress = getRouterFromQuoter(bestQuoterAddress);
         ISwapRouter router = ISwapRouter(bestQuoterAddress);
+
+        uint256 protocolFeeAmount = (_amountIn * protocolFee) / 10_000;
+        uint256 amountInAfterFee = _amountIn - protocolFeeAmount;
+
+        // Approve the router to spend the input tokens
+        IERC20(_tokenIn).approve(bestQuoterAddress, amountInAfterFee);
+
+        // Cache the amount
+        // uint256 currentValue = IERC20(_tokenOut).balanceOf(address(this));
         
         // Execute the swap
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
@@ -260,6 +266,15 @@ contract Aggregator is Ownable {
         });
         
         amountOut = router.exactInputSingle(params);
+        require(amountOut >= _amountOutMinimum, "Insufficient output amount");
+
+        // // Cache the amount
+        // uint256 newCurrentValue = IERC20(_tokenOut).balanceOf(address(this));
+        // require(newCurrentValue > currentValue, "Insufficient output amount");
+
+        // Transfer the output tokens to the recipient
+        // uint256 amountReceived = newCurrentValue - currentValue;
+        IERC20(_tokenOut).transfer(_recipient, amountOut);
         
         emit BestRouteFound(
             dexRegistry[bestDexIndex].name,
@@ -275,25 +290,6 @@ contract Aggregator is Ownable {
         IERC20(token).transfer(msg.sender, amount);
         emit FeesClaimed(token, amount);
     }
-
-    // function fee(address token) external view returns (uint256) {
-    //     // Implement fee calculation logic here
-    //     // This could involve checking the balance of the token in this contract
-    //     return IERC20(token).balanceOf(address(this));
-    // }
-    
-    // /**
-    //  * @dev Get the router address from a quoter address
-    //  * @param _quoterAddress Address of the quoter
-    //  * @return Address of the corresponding router
-    //  * @notice This is a placeholder function - in a real implementation, you would need to
-    //  * either store router addresses alongside quoter addresses or have a way to derive one from the other
-    //  */
-    // function getRouterFromQuoter(address _quoterAddress) internal pure returns (address) {
-    //     // This is a placeholder - in reality, you would need to implement this properly
-    //     // For example, you might have a mapping from quoter addresses to router addresses
-    //     return address(0); // Replace with actual implementation
-    // }
 
     // Events
     event BestRouteFound(string dexName, address dex, uint256 amountOut);
