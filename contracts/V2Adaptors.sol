@@ -9,10 +9,14 @@ contract V2Adaptor is ISwapRouter {
     // The actual implementation would be done in a separate contract
 
     // The address of the Uniswap V2 router
-    address private immutable swapRouter;
+    address public immutable swapRouter;
+    address public immutable quoter;
+    string public immutable name;
 
-    constructor(address _swapRouter) {
+    constructor(address _swapRouter, address _quoter, string _name) {
         swapRouter = _swapRouter;
+        quoter = _quoter;
+        name = _name;
     }
 
     function exactInputSingle(ExactInputSingleParams calldata params) external payable override returns (uint256 amountOut) {
