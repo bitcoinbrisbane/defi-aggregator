@@ -25,19 +25,10 @@ const config: HardhatUserConfig = {
 				url: `${process.env.RPC_URL}`,
 			},
 		},
-		sepolia: {
-			url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-			accounts: PK ? [PK] : [],
-			chainId: 11155111,
-		},
-		monad: {
-			chainId: 10143,
-			url: `${process.env.RPC_URL}`,
-			accounts: PK ? [PK] : [],
-		},
 		monadTestnet: {
 			url: "https://testnet-rpc.monad.xyz",
 			chainId: 10143,
+			accounts: PK ? [PK] : [],
 		},
 	},
 	sourcify: {
