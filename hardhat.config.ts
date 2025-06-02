@@ -25,7 +25,7 @@ const config: HardhatUserConfig = {
 				url: `${process.env.RPC_URL}`,
 			},
 		},
-		monadTestnet: {
+		monad: {
 			url: "https://testnet-rpc.monad.xyz",
 			chainId: 10143,
 			accounts: PK ? [PK] : [],
