@@ -21,9 +21,9 @@ const config: HardhatUserConfig = {
 			accounts: PK ? [PK] : [],
 			chainId: 11155111,
 		},
-		monad: {
+		monadDev: {
 			chainId: 10143,
-			url: `${process.env.RPC_URL}`,
+			url: "https://testnet-rpc.monad.xyz",
 			accounts: PK ? [PK] : [],
 		},
 	},
@@ -44,8 +44,8 @@ const config: HardhatUserConfig = {
 		},
 		customChains: [
 			{
-				network: "base",
-				chainId: 8453,
+				network: "monad",
+				chainId: 10143,
 				urls: {
 					apiURL: "https://api.basescan.org/api",
 					browserURL: "https://basescan.org",
