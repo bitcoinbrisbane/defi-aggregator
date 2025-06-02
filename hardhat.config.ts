@@ -9,6 +9,15 @@ const PK = process.env.PK || "";
 
 const config: HardhatUserConfig = {
 	defaultNetwork: "hardhat",
+	solidity: {
+		version: "0.8.27",
+		settings: {
+			metadata: {
+				bytecodeHash: "none", // disable ipfs
+				useLiteralContent: true, // use source code
+			},
+		},
+	},
 	networks: {
 		hardhat: {
 			chainId: 1337,
@@ -16,18 +25,21 @@ const config: HardhatUserConfig = {
 				url: `${process.env.RPC_URL}`,
 			},
 		},
-		sepolia: {
-			url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
-			accounts: PK ? [PK] : [],
-			chainId: 11155111,
-		},
-		monadDev: {
-			chainId: 10143,
+		monadTestnet: {
 			url: "https://testnet-rpc.monad.xyz",
+			chainId: 10143,
 			accounts: PK ? [PK] : [],
 		},
 	},
-	solidity: "0.8.27",
+	sourcify: {
+		enabled: true,
+		apiUrl: "https://sourcify-api-monad.blockvision.org",
+		browserUrl: "https://testnet.monadexplorer.com",
+	},
+	// To avoid errors from Etherscan
+	etherscan: {
+		enabled: false,
+	},
 	paths: {
 		sources: "./contracts",
 		tests: "./test",
@@ -36,22 +48,6 @@ const config: HardhatUserConfig = {
 	},
 	mocha: {
 		timeout: 40000,
-	},
-	etherscan: {
-		apiKey: {
-			sepolia: process.env.ETHERSCAN_API_KEY || "",
-			monad: process.env.ETHERSCAN_API_KEY || "",
-		},
-		customChains: [
-			{
-				network: "monad",
-				chainId: 10143,
-				urls: {
-					apiURL: "https://api.basescan.org/api",
-					browserURL: "https://basescan.org",
-				},
-			},
-		],
 	},
 };
 
