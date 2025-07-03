@@ -29,7 +29,7 @@ async function getBestQuote() {
 			// Replace with your contract address
 			contractAddress: "0xEd7C8b67CBE408a04D3eaba163e24f844834300B",
 			// Example token addresses (replace with actual addresses)
-			tokenIn: "0xaEef2f6B429Cb59C9B2D7bB2141ADa993E8571c3", // gmon
+			tokenIn: "0xcf5a6076cfa32686c0Df13aBaDa2b40dec133F1d", // wbtc
 			tokenOut: "0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701", // wmon
 			// Amount in wei (1 USDC = 1e6 for USDC with 6 decimals)
 			amountIn: ethers.parseUnits("1", 18),
