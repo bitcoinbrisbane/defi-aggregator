@@ -5,6 +5,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "V2Adaptor.sol";
 
 /**
  * @title Aggregator
@@ -52,6 +53,28 @@ contract Aggregator is Ownable {
         }));
         
         emit DexAdded(_name, _quoterAddress, index);
+    }
+
+    function addv2Dex(
+        string memory _name, 
+        address _quoterAddress, 
+        address _routerAddress
+    ) external onlyOwner {
+        require(_quoterAddress != address(0), "Invalid quoter address");
+        
+        uint256 index = dexRegistry.length;
+
+        // Deploy the V2 Adaptor contract
+        V2Adaptor v2Adaptor = new V2Adaptor(_routerAddress, _quoterAddress, _name);
+
+        dexRegistry.push(DexInfo({
+            name: _name,
+            quoterAddress: address(v2Adaptor),
+            routerAddress: _routerAddress,
+            enabled: true
+        }));
+
+        emit DexAdded(_name, address(v2Adaptor), index);
     }
 
     /**
