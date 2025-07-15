@@ -2,15 +2,11 @@
 pragma solidity ^0.8.27;
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import { IUniswapV2Router } from "Interfaces.sol";
+import { IV3, IUniswapV2Router } from "Interfaces.sol";
 import { IRC20 } from "Interfaces.sol";
 
 contract V2Adaptor is IV3 {
     // This contract is a placeholder for the V2 Adaptor
-    // It implements the ISwapRouter interface but does not provide any functionality
-    // The actual implementation would be done in a separate contract
-
-    // The address of the Uniswap V2 router
     address public immutable swapRouter;
     address public immutable quoter;
     address public immutable factory;
