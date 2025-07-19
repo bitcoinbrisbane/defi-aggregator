@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
+// import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+// import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "V2Adaptor.sol";
+import "Interfaces.sol";
 
 /**
  * @title Aggregator
@@ -55,7 +56,7 @@ contract Aggregator is Ownable {
         emit DexAdded(_name, _quoterAddress, index);
     }
 
-    function addv2Dex(
+    function addV2Dex(
         string memory _name, 
         address _quoterAddress, 
         address _routerAddress
@@ -185,7 +186,7 @@ contract Aggregator is Ownable {
             }
             
             for (uint256 j = 0; j < fees.length; j++) {
-                IQuoter quoter = IQuoter(dexRegistry[i].quoterAddress);
+                IV3Quoter quoter = IV3Quoter(dexRegistry[i].quoterAddress);
                 bestFee = fees[j];
                 
                 try quoter.quoteExactInputSingle(
@@ -265,7 +266,7 @@ contract Aggregator is Ownable {
         IERC20(_tokenIn).transferFrom(msg.sender, address(this), _amountIn);
         
         // address routerAddress = getRouterFromQuoter(bestQuoterAddress);
-        ISwapRouter router = ISwapRouter(bestQuoterAddress);
+        IV3Router router = IV3Router(bestQuoterAddress);
 
         uint256 protocolFeeAmount = (_amountIn * protocolFee) / 10_000;
         uint256 amountInAfterFee = _amountIn - protocolFeeAmount;
@@ -277,7 +278,7 @@ contract Aggregator is Ownable {
         // uint256 currentValue = IERC20(_tokenOut).balanceOf(address(this));
         
         // Execute the swap
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        IV3Router.ExactInputSingleParams memory params = IV3Router.ExactInputSingleParams({
             tokenIn: _tokenIn,
             tokenOut: _tokenOut,
             fee: bestFee,
@@ -312,6 +313,11 @@ contract Aggregator is Ownable {
 
         IERC20(token).transfer(msg.sender, amount);
         emit FeesClaimed(token, amount);
+    }
+
+    function supportsInterface(address account, bytes4 interfaceId) internal view returns (bool) {
+        // Check if the account supports the interface
+        return account.code.length > 0 && (IERC20(account).supportsInterface(interfaceId) || IQuoter(account).supportsInterface(interfaceId));
     }
 
     // Events
