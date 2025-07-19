@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import { IV3, IUniswapV2Router } from "Interfaces.sol";
+import { IV3Router, IUniswapV2Router } from "Interfaces.sol";
 import { IRC20 } from "Interfaces.sol";
 
-contract V2Adaptor is IV3 {
+contract V2Adaptor is IV3Router {
     // This contract is a placeholder for the V2 Adaptor
     address public immutable swapRouter;
     address public immutable quoter;
