@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import { IV3Router, IUniswapV2Router } from "Interfaces.sol";
+import { IV3Router, IV3Quoter, IUniswapV2Router } from "Interfaces.sol";
 import { IRC20 } from "Interfaces.sol";
 
-contract V2Adaptor is IV3Router {
+contract V2Adaptor is IV3Router, IV3Quoter {
     // This contract is a placeholder for the V2 Adaptor
     address public immutable swapRouter;
     address public immutable quoter;
@@ -43,17 +43,14 @@ contract V2Adaptor is IV3Router {
         IERC20(params.tokenOut).transfer(params.recipient, amountOut);
     }
 
-    function exactInput(ExactInputParams calldata params) external payable override returns (uint256 amountOut) {
-        IUniswapV2Pair pair = IUniswapV2Pair(factory);
-        
-        revert("Not implemented");
-    }
-
-    function exactOutputSingle(ExactOutputSingleParams calldata params) external payable override returns (uint256 amountIn) {
-        revert("Not implemented");
-    }
-
-    function exactOutput(ExactOutputParams calldata params) external payable override returns (uint256 amountIn) {
-        revert("Not implemented");
+    function quoteExactInputSingle(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint256 amountIn
+    ) external returns (uint256 amountOut) {
+        // Call the Uniswap V2 quoter to get the output amount for a given input amount
+        require(tokenIn != address(0) && tokenOut != address(0), "Invalid token addresses");
+        require(amountIn > 0, "Amount in must be greater than zero");
     }
 }
