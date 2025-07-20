@@ -52,5 +52,12 @@ contract V2Adaptor is IV3Router, IV3Quoter {
         // Call the Uniswap V2 quoter to get the output amount for a given input amount
         require(tokenIn != address(0) && tokenOut != address(0), "Invalid token addresses");
         require(amountIn > 0, "Amount in must be greater than zero");
+
+        IUniswapV2Router router = IUniswapV2Router(swapRouter);
+
+        // function quote(uint amountA, uint reserveA, uint reserveB) internal pure returns (uint amountB);
+        uint256 reserveA = IERC20(tokenIn).balanceOf(factory);
+        uint256 reserveB = IERC20(tokenOut).balanceOf(factory);
+        amountOut = router.quote(amountIn, reserveA, reserveB);
     }
 }
