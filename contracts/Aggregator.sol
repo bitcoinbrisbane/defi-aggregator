@@ -195,8 +195,8 @@ contract Aggregator is Ownable {
                     _tokenIn,
                     _tokenOut,
                     bestFee,
-                    _amountIn,
-                    0 // sqrtPriceLimitX96 - set to 0 for no price limit
+                    _amountIn
+                    // 0 // sqrtPriceLimitX96 - set to 0 for no price limit
                 ) returns (uint256 amountOut) {
                     if (amountOut > bestAmountOut) {
                         bestAmountOut = amountOut;
