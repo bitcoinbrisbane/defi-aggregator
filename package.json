@@ -8,7 +8,8 @@
     "hh:compile": "hardhat compile",
     "hh:test": "hardhat test",
     "hh:node": "npx hardhat node",
-    "hh:deploy:ag": "npx hardhat ignition deploy ./ignition/modules/Aggregator.ts --network monad --verify"
+    "hh:deploy:ag": "npx hardhat ignition deploy ./ignition/modules/Aggregator.ts --network monad",
+    "hh:deploy:ag:verify": "npx hardhat ignition deploy ./ignition/modules/Aggregator.ts --network monad --verify"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
