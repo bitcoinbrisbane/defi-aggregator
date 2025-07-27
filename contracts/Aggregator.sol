@@ -5,8 +5,8 @@ pragma solidity ^0.8.27;
 // import "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "V2Adaptor.sol";
-import "Interfaces.sol";
+import "./V2Adaptor.sol";
+import "./Interfaces.sol";
 
 /**
  * @title Aggregator
@@ -57,25 +57,27 @@ contract Aggregator is Ownable {
     }
 
     function addV2Dex(
-        string memory _name, 
-        address _quoterAddress, 
-        address _routerAddress
+        string memory name, 
+        address quoterAddress, 
+        address factoryAddress,
+        address routerAddress
     ) external onlyOwner {
-        require(_quoterAddress != address(0), "Invalid quoter address");
+        require(quoterAddress != address(0), "Invalid quoter address");
+        require(routerAddress != address(0), "Invalid router address");
         
         uint256 index = dexRegistry.length;
 
         // Deploy the V2 Adaptor contract
-        V2Adaptor v2Adaptor = new V2Adaptor(_routerAddress, _quoterAddress, _name);
+        V2Adaptor v2Adaptor = new V2Adaptor(routerAddress, quoterAddress, factoryAddress, name);
 
         dexRegistry.push(DexInfo({
-            name: _name,
+            name: name,
             quoterAddress: address(v2Adaptor),
-            routerAddress: _routerAddress,
+            routerAddress: routerAddress,
             enabled: true
         }));
 
-        emit DexAdded(_name, address(v2Adaptor), index);
+        emit DexAdded(name, address(v2Adaptor), index);
     }
 
     /**
@@ -317,7 +319,8 @@ contract Aggregator is Ownable {
 
     function supportsInterface(address account, bytes4 interfaceId) internal view returns (bool) {
         // Check if the account supports the interface
-        return account.code.length > 0 && (IERC20(account).supportsInterface(interfaceId) || IQuoter(account).supportsInterface(interfaceId));
+        // return account.code.length > 0 && (IERC20(account).supportsInterface(interfaceId) || IQuoter(account).supportsInterface(interfaceId));
+        return true; // Placeholder, implement actual interface check if needed
     }
 
     // Events

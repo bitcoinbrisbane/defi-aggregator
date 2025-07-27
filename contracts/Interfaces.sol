@@ -52,7 +52,7 @@ interface IV3Router {
     function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
 
     // function exactInput(ExactInputParams calldata params) external payable returns (uint256 amountOut);
-    function exactOutputSingle(ExactOutputSingleParams calldata params) external payable returns (uint256 amountIn);
+    // function exactOutputSingle(ExactOutputSingleParams calldata params) external payable returns (uint256 amountIn);
 
     // function exactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);
 }
@@ -112,7 +112,7 @@ interface IUniswapV2Router {
     function factory() external pure returns (address);
     function WETH() external pure returns (address);
 
-    function quote(uint amountA, uint reserveA, uint reserveB) internal pure returns (uint amountB);
+    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
 
     function swapExactTokensForTokens(
         uint amountIn,
